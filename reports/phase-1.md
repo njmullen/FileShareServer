@@ -1,6 +1,9 @@
-﻿Conor Lamb, col26@pitt.edu, github: pere5troika
+Conor Lamb, col26@pitt.edu, github: pere5troika
+
 Nick Mullen, njm72@pitt.edu, github: njmullen
+
 Riley Marzka, rjm132@pitt.edu, github: ImFromMarzKa
+
 
 
 # Project 1
@@ -69,9 +72,9 @@ Our file sharing system would be used at a company that sells bear furs. They us
 All Employees will each have their own private accounts. Managers should be able to control access to files to their teams. Marketing teams shouldn’t be able to access sales documents unless they are explicitly shared. Also, employees shouldn’t be able to overwrite or edit other employee’s documents unless explicitly shared.
 
 
--Group Validity: group validity is very important because it ensures that employees not belonging to a group, cannot see that group’s files.
--File Integrity: file integrity ensures that employees files are not being overwritten or modified by users not permitted to edit them.
--Privilege Levels: privilege levels ensures that managers are the only ones who can add/remove users from groups, allow employees to collaborate on specific files, and to ensure that users are not editing files for which they do not have direct access to
+- Group Validity: group validity is very important because it ensures that employees not belonging to a group, cannot see that group’s files.
+- File Integrity: file integrity ensures that employees files are not being overwritten or modified by users not permitted to edit them.
+- Privilege Levels: privilege levels ensures that managers are the only ones who can add/remove users from groups, allow employees to collaborate on specific files, and to ensure that users are not editing files for which they do not have direct access to
 
 
 ### Public File Tracker
@@ -99,11 +102,11 @@ This scenario is about a nuclear submarine carrying a radioactive payload. The s
 Since the submarine contains many different positions and rankings of sailors, there are multiple privilege levels to access different files, thus it must be ensured that only registered users with appropriate permissions can access files. It also must be ensured that only people who are on the submarine or controlling the operations of the submarine can access files, and those files cannot be intercepted or modified by someone who is not an authorized user.
 
 
--Prompt Removal: Upon a crew member’s permission being revoked for any reason, it is important that he or she can no longer access the system. It is presumed that permissions would be revoked due to a transgression on the part of the crew member, leading to the assumption that the crew member has malicious intent.
--File Integrity: File integrity is important to ensure that no files on the system have been tampered with in a malicious way. If any files have been tampered with it could hinder the crew’s ability to complete their mission. 
--Constant Privilege Checking: This is essential to prevent back doors into the system. Whenever any user attempts to perform an action within the system, his privilege level must be checked to verify that he is permitted to complete the action
--Privilege Levels: There must be a separation of privileges within the system because each rank of crew member should only be allowed to perform certain tasks. A lieutenant for example has a lot more privilege than an officer, for example
--User Account Security: It is important than no one can impersonate another user in the system. This could lead to malicious tampering and gathering of information
--Failover Planning: It is essential that there be a plan, should catastrophic failure occur. Without failover planning and with a radioactive payload, countless lives could be lost due to a system failure
--System Usability: It is important that the crew knows how to properly use the system. In an emergency situation, the crew must know and be able to use the system like the back of their hand
--Least Amount of Privilege: In the case of a system breach, it is important that system access is mitigated so that an attacker does not gain access to everything, such as military secrets and launch codes.
+- Prompt Removal: Upon a crew member’s permission being revoked for any reason, it is important that he or she can no longer access the system. It is presumed that permissions would be revoked due to a transgression on the part of the crew member, leading to the assumption that the crew member has malicious intent.
+- File Integrity: File integrity is important to ensure that no files on the system have been tampered with in a malicious way. If any files have been tampered with it could hinder the crew’s ability to complete their mission. 
+- Constant Privilege Checking: This is essential to prevent back doors into the system. Whenever any user attempts to perform an action within the system, his privilege level must be checked to verify that he is permitted to complete the action
+- Privilege Levels: There must be a separation of privileges within the system because each rank of crew member should only be allowed to perform certain tasks. A lieutenant for example has a lot more privilege than an officer, for example
+- User Account Security: It is important than no one can impersonate another user in the system. This could lead to malicious tampering and gathering of information
+- Failover Planning: It is essential that there be a plan, should catastrophic failure occur. Without failover planning and with a radioactive payload, countless lives could be lost due to a system failure
+- System Usability: It is important that the crew knows how to properly use the system. In an emergency situation, the crew must know and be able to use the system like the back of their hand
+- Least Amount of Privilege: In the case of a system breach, it is important that system access is mitigated so that an attacker does not gain access to everything, such as military secrets and launch codes.
