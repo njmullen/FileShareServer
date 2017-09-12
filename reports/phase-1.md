@@ -3,10 +3,10 @@ Nick Mullen, njm72@pitt.edu, github: njmullen
 Riley Marzka, rjm132@pitt.edu, github: ImFromMarzKa
 
 
-#Project 1
+# Project 1
 
 
-##Security Properties
+## Security Properties
 
 
 Group Validity: If a file is shared with specific members of a group, other members outside of that group should not be able to do any actions (read, modify, delete, or see and existence or activity) related to that file. Without this rule, members’ activity will be without privacy and thus actions and file that were meant for specific users will be public to all users. 
@@ -57,10 +57,10 @@ Failover Planning: Contingency plans and fail-over servers will be active to pre
 Intermittent Auto-Sync: After a predetermined time intervals, there will be a user-session data sync. If the connection is lost in the middle of a session, this property will prevent mass user data loss whether there’s an outage on our side or the client side. This “unsaved” data will be easily recoverable upon initiation of the user’s next session.
 
 
-##Threat Models
+## Threat Models
 
 
-###Bear Fur Company
+### Bear Fur Company
 
 
 Our file sharing system would be used at a company that sells bear furs. They use the system to host collaborative documents on different teams (sales, marketing, IT, bear hunters, skinners, etc.). Managers in each department create documents which are collaborated on by employees. Employees often download files to work on at home, and then upload their changes. Since the file server is only to be used inside of the company, the main security concern is preventing employees from seeing files not directly shared with them. 
@@ -74,7 +74,7 @@ All Employees will each have their own private accounts. Managers should be able
 -Privilege Levels: privilege levels ensures that managers are the only ones who can add/remove users from groups, allow employees to collaborate on specific files, and to ensure that users are not editing files for which they do not have direct access to
 
 
-###Public File Tracker
+### Public File Tracker
 
 
 NotIllegalWarez™ is a website where anonymous users can upload any file and share links to it. The servers need to be able to handle many simultaneous uploads and downloads at once. Files should be able to be uploaded or download but cannot be modified. There is not account features on this site, only anonymous users who can share links to their uploads. The site needs to maintain many different, separate types of files without them being corrupted.
@@ -90,7 +90,7 @@ Any user can upload or download any file that is hosted on the system. Since the
 - System Usability: Since users on the system do not need an account, there cannot be any assumptions made about their intelligence. Therefore, we need to design the website such that users can easily use and understand it so they only upload and download the files they intend. 
 
 
-###Nuclear Submarine
+### Nuclear Submarine
 
 
 This scenario is about a nuclear submarine carrying a radioactive payload. The submarine is full of military personnel of varying ranks. The submersible often dives below the sea level and thus requires intense safety measures to make sure the hull isn’t breached nor other capacities of the sub lost. We also need to account for enemies of the sub trying to hack the file system and deter the sub’s mission objectives.
