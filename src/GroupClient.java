@@ -3,18 +3,9 @@
 import java.util.ArrayList;
 import java.util.*;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class GroupClient extends Client implements GroupClientInterface {
-
-	public static void main(String[] args){
-		//Check permissions
-		//TODO
-
-		//For now
-		displayMenu();
-		
-		
-	}
 
 	public void displayMenu(){
 		//Main menu for now
