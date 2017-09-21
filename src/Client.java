@@ -12,9 +12,22 @@ public abstract class Client {
 	protected ObjectInputStream input;
 
 	public boolean connect(final String server, final int port) {
-		System.out.println("attempting to connect");
+		System.out.println("Attempting to connect");
 
-		/* TODO: Write this method */
+		try {
+			//Converts the desired port number to a string and creates a socket
+			String portString = Integer.toString(port);
+			sock = new Socket(portString, GroupServer.SERVER_PORT);
+			// Set up I/O streams with the server
+		    output = new ObjectOutputStream(sock.getOutputStream());
+		    input = new ObjectInputStream(sock.getInputStream());
+		} catch (Exception e) {
+			System.err.println("Error: " + e.getMessage());
+	    	e.printStackTrace(System.err);
+		}
+		
+		//Returns isConnected() to detect if connection to server was succesful
+		return isConnected();
 
 	}
 
