@@ -1,10 +1,63 @@
 /* Implements the GroupClient Interface */
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.io.ObjectInputStream;
 
 public class GroupClient extends Client implements GroupClientInterface {
+
+	public static void main(String[] args){
+		//Check permissions
+		//TODO
+
+		//For now
+		displayMenu();
+		
+		
+	}
+
+	public void displayMenu(){
+		//Main menu for now
+		int selection = -1;
+		Scanner scan = new Scanner(System.in);
+		while (selection != 0){
+			System.out.println("");
+			System.out.println("1. Create a user");
+			System.out.println("2. Delete a user");
+			System.out.println("3. Create a group");
+			System.out.println("4. Delete a group");
+			System.out.println("5. Add user to a group");
+			System.out.println("6. Delete user from a group");
+			System.out.println("7. List the users of a group");
+			System.out.println("");
+			System.out.println("0. Exit");
+			System.out.println("");
+			System.out.print("\bSelect an option: ");
+			menuAction(selection);
+			selection = scan.nextInt();
+		}
+	}
+
+	public void menuAction(int choice){
+		Scanner scan = new Scanner(System.in);
+		switch(choice){
+			//1. Create a user
+			case 1:
+				System.out.println("\bCreate A User\n");
+				System.out.println("Enter the username: ");
+				String username = scan.next();
+				UserToken token = getToken(username);
+				boolean addUser = createUser(username, token);
+				if (addUser){
+					System.out.println(username + " succesfully added!");
+				} else {
+					System.out.println("Error! " + username + " not added");
+				}
+				break;
+			default:
+				break;
+		}
+	}
  
 	 public UserToken getToken(String username)
 	 {
