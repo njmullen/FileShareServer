@@ -34,16 +34,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 		switch(choice){
 			//1. Create a user
 			case 1:
+				if (isConnected()){
+					System.out.println("Connected");
+				}
 				System.out.println("\bCreate A User\n");
 				System.out.println("Enter the username: ");
 				String username = scan.next();
 				UserToken token = getToken(username);
-				boolean addUser = createUser(username, token);
-				if (addUser){
-					System.out.println(username + " succesfully added!");
-				} else {
-					System.out.println("Error! " + username + " not added");
-				}
+
+
 				break;
 			default:
 				break;
