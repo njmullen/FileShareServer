@@ -51,7 +51,6 @@ import java.util.*;
 		public synchronized void addGroup(String user, String groupname)
 		{
 			list.get(user).addGroup(groupname);
-			System.out.println("ADDED GROUP");
 		}
 		
 		public synchronized void removeGroup(String user, String groupname)
@@ -62,7 +61,6 @@ import java.util.*;
 		public synchronized void addOwnership(String user, String groupname)
 		{
 			list.get(user).addOwnership(groupname);
-			System.out.println("ADDED OWNERSHIP");
 		}
 		
 		public synchronized void removeOwnership(String user, String groupname)

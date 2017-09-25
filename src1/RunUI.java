@@ -138,6 +138,17 @@ public class RunUI {
                         System.out.println("Error! Unable to delete " + userToDelete + " from " + groupToDeleteFrom);
                     }
                     break;
+                //Delete a group
+                case 7:
+                    System.out.println("Delete a Group");
+                    System.out.println("Enter the group name: ");
+                    String groupToDelete = scan.next();
+                    if(gc.deleteGroup(groupToDelete, token)){
+                        System.out.println(groupToDelete + " succesfully deleted");
+                    } else {
+                        System.out.println("Error! Unable to delete " + groupToDelete);
+                    }
+                    break;
                 case 0:
                     break;
                 default:
@@ -166,6 +177,7 @@ public class RunUI {
         System.out.println("4. List members of a group");
         System.out.println("5. Add user to group");
         System.out.println("6. Delete user from group");
+        System.out.println("7. Delete a group");
         System.out.println("");
         System.out.println("0. Exit");
         System.out.print("Select an option: ");

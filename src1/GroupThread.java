@@ -137,7 +137,30 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("DGROUP")) //Client wants to delete a group
 				{
-				    /* TODO:  Write this handler */
+				    if(message.getObjContents().size() < 2)
+					{
+						response = new Envelope("FAIL");
+					}
+					else
+					{
+						response = new Envelope("FAIL");
+						//TODO: add third check for null
+						if(message.getObjContents().get(0) != null)
+						{
+							if(message.getObjContents().get(1) != null)
+							{
+								String groupToDelete = (String)message.getObjContents().get(0); //Extract the username
+								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+
+								if(deleteGroup(groupToDelete, yourToken))
+								{
+									response = new Envelope("OK"); //Success
+								}
+							}
+						}
+					}
+
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("LMEMBERS")) //Client wants a list of members in a group
 				{
@@ -355,6 +378,35 @@ public class GroupThread extends Thread
 		}
 	}
 
+	private boolean deleteGroup(String groupname, UserToken yourToken){
+		String requester = yourToken.getSubject();
+		//Check if requesting user exists
+		if(my_gs.userList.checkUser(requester)){
+			//Get list of all users
+			Enumeration<String> groupList = my_gs.userList.getUserList();
+			ArrayList<String> ownerOf = my_gs.userList.getUserOwnership(requester);
+			//If requester is not owner of group, then deny request
+			if(!ownerOf.contains(groupname)){
+				return false;
+			}
+			//Remove ownership and group from owner
+			my_gs.userList.removeGroup(requester, groupname);
+			my_gs.userList.removeOwnership(requester, groupname);
+			while(groupList.hasMoreElements()){
+				String thisUser = groupList.nextElement();
+				ArrayList<String> thisUserGroups = my_gs.userList.getUserGroups(thisUser);
+				if(thisUserGroups.contains(groupname)){
+					my_gs.userList.removeGroup(thisUser, groupname);
+				}
+			}
+			return true;
+		} else {
+			//Doesn't exist
+			return false;
+		}
+
+	}
+
 	private boolean createGroup(String groupname, UserToken yourToken){
 		String requester = yourToken.getSubject();
 		//Check if requesting user exists
@@ -367,14 +419,11 @@ public class GroupThread extends Thread
 			while(groupList.hasMoreElements()){
 				String thisUser = groupList.nextElement();
 				ArrayList<String> thisUserOwns = my_gs.userList.getUserOwnership(thisUser);
-				for(int j = 0; j < thisUserOwns.size(); j++){
-					if(thisUserOwns.contains(groupname)){
-						return false;
-					}
+				if(thisUserOwns.contains(groupname)){
+					return false;
 				}
 			}
 			//Otherwise, add ownership of this group to requester and group to this user
-			System.out.println("adding " + requester + " to " + groupname);
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
 			return true;
@@ -463,38 +512,4 @@ public class GroupThread extends Thread
 		}
 	} 
 
-	//TODO Check that this is right I (Conor) put this in here
-	//to make it work but for some reason I see that there is a deleteGroup
-	//here and also in group Client
-	//btw I just copied this from the impelementation on GroupClinet
-	private boolean deleteGroup(final String groupname, final UserToken token)
-	{
-		try
-		 {
-			 final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-			 final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-
-			 Envelope message = null, response = null;
-			 //Tell the server to delete a group
-			 message = new Envelope("DGROUP");
-			 message.addObject(groupname); //Add group name string
-			 message.addObject(token); //Add requester's token
-			 output.writeObject(message);
-
-			 response = (Envelope)input.readObject();
-			 //If server indicates success, return true
-			 if(response.getMessage().equals("OK"))
-			 {
-				 return true;
-			 }
-
-			 return false;
-		 }
-		 catch(Exception e)
-		 {
-			 System.err.println("Error: " + e.getMessage());
-			 e.printStackTrace(System.err);
-			 return false;
-		 }
-	}
 }
