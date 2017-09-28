@@ -1,5 +1,6 @@
 import java.util.Scanner;
 import java.util.*;
+import java.util.List;
 
 public class RunUI {
   public static void main(String args[]) {
@@ -25,7 +26,7 @@ public class RunUI {
             System.exit(0);
     	}
     } else {
-    	System.out.println("Unable to connect to GroupClient");
+    	System.out.println("Unable to connect to GroupServer");
     }
 
     //Asks the user if they want to make operations on files or on groups and connects then
@@ -34,9 +35,8 @@ public class RunUI {
     //TODO: Change verbage/logic as user is already "connected" to groupServer but not to
     //file server. Move connection into serverChoice if/else or initiate fileServer connection
     //earlier
-    System.out.println("Welcome, " + username + "!");
-    System.out.println("");
-    System.out.println("1. Connect to GroupServer");
+    System.out.println("Welcome, " + username + "!\n");
+    System.out.println("1. Perform GroupServer operations");
     System.out.println("2. Connect to FileServer");
     System.out.print("Select an option: ");
     int serverChoice = scan.nextInt();
@@ -48,7 +48,8 @@ public class RunUI {
 
     //Once the user has selected group/file server, displays operations and completes them
     //on the appropriate server
-    //TODO: Check for valid input, finish implementation
+    
+    //GroupServer Menu Handling
     if (serverChoice == 1){
         int groupMenuChoice = -1;
         while (groupMenuChoice != 0){
@@ -152,11 +153,95 @@ public class RunUI {
                 case 0:
                     break;
                 default:
+                    System.out.println("Invalid input: Please select an option 0-7");
                     break;
             }
         }
-    } else if (serverChoice == 2){
-        //int fileMenuChoice = fileMenu();
+    } 
+    //FileServer Menu Handling
+    else if (serverChoice == 2){
+        //Connect to FileServer
+        fc.connect("localhost", 4321);  //Ask for server & port?
+        if(fc.isConnected()){
+            System.out.println("Connected to FileServer");
+            int fileMenuChoice = -1;
+            while(fileMenuChoice != 0){
+                fileMenuChoice = fileMenu();
+                String destFile, sourceFile, group, fileName;
+                switch(fileMenuChoice){
+                    case 1:
+                        System.out.println("Upload a file");
+                        System.out.println("Enter the name of the local source file: ");
+                        sourceFile = scan.next();
+                        System.out.println("Enter the name of the destination file: ");
+                        destFile = scan.next();
+                        System.out.println("Enter the name of the group to which this file should be added:  ");
+                        group = scan.next();
+                        if(fc.upload(sourceFile, destFile, group, token)){
+                            System.out.println(sourceFile + " successfully uploaded as " + destFile + " in group " + group);
+                        }
+                        else{
+                            System.out.println("Error! Unable to upload " + sourceFile);
+                        }
+                        break;
+
+                    case 2:
+                        System.out.println("Download a file");
+                        System.out.println("Enter the name of the source file on the server: ");
+                        sourceFile = scan.next();
+                        System.out.println("Enter the name of the local destination file: ");
+                        destFile = scan.next();
+                        if(fc.download(sourceFile, destFile, token)){
+                            System.out.println(sourceFile + " succesfully downloaded as " + destFile);
+                        }
+                        else{
+                            System.out.println("Error! Unable to download " + sourceFile); 
+                        }
+                        break;
+
+                    case 3:
+                        System.out.println("Delete a file");
+                        System.out.println("Enter the name of teh file to be deleted");
+                        fileName = scan.next();
+                        if(fc.delete(fileName, token)){
+                            System.out.println(fileName + " succesfully deleted");
+                        }
+                        else{
+                            System.out.println("Error! Unable to delete " + fileName);
+                        }
+                        break;
+
+                    case 4: 
+                        System.out.println("List all files");
+                        List<String> files = fc.listFiles(token);
+                        if(files != null){
+                            int count = files.size();
+
+                            //TROUBLESHOOOTING
+                            System.out.println("count = " + count + "\n");
+
+                            for(int i = 0; i < count; i++){
+                                String file = files.get(i)
+                                System.out.println(file);
+                            }
+                        }
+                        else{
+                            System.out.println("Error! Unable to retrieve files list");
+                        }
+                        break;
+
+                    case 0:
+                        break;
+                    default:
+                        System.out.println("Invalid input: Please select an option 0-4");
+                        break;
+                }
+            }
+        }
+        else{
+            System.out.println("Error! Unable to connect ot FileServer");
+            //TODO: Potentially handle this 
+        } 
     }
 
 
@@ -181,6 +266,20 @@ public class RunUI {
         System.out.println("");
         System.out.println("0. Exit");
         System.out.print("Select an option: ");
+        int choice = scan.nextInt();
+        System.out.println("");
+        return choice;
+  }
+
+  public static int fileMenu(){
+        Scanner scan = new Scanner(System.in);
+        System.out.println("\nFile Server Menu");
+        System.out.println("1. Upload a file");
+        System.out.println("2. Download a file");
+        System.out.println("3. Delete a file");
+        System.out.println("4. List all files\n");
+        System.out.println("0. Exit");
+        System.out.println("Select an option: ");
         int choice = scan.nextInt();
         System.out.println("");
         return choice;
