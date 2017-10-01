@@ -46,8 +46,7 @@ public class FileThread extends Thread
 				    	}
 				    	else{
 				    		UserToken yourToken = (UserToken)e.getObjContents().get(0);
-				    		//List<String> userGroups = yourToken.getGroups(); //Pull list of groups from user's token
-				    		ArrayList<ShareFile> fullList = FileServer.fileList.getFiles(); //Pull full list from file server
+				    		ArrayList<ShareFile> fullList = new ArrayList<ShareFile>(FileServer.fileList.getFiles()); //Pull full list from file server
 				    		List<String> accessList = new ArrayList<String>(); //Stores names of files which user has access to
 				    		
 				    		//Check all files on server and compile list of files which user can access
