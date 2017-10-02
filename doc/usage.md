@@ -1,4 +1,4 @@
-# Using the File Server
+# Using the Program
 
 ## Compiling
 
