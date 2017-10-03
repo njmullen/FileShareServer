@@ -426,6 +426,8 @@ public class GroupThread extends Thread
 			//Otherwise, add ownership of this group to requester and group to this user
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
+
+			yourToken = createToken(username);		
 			return true;
 		} else {
 			//User does not exist

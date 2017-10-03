@@ -161,13 +161,19 @@ public class RunUI {
                         System.out.println("Invalid input: Please select an option 0-7");
                         break;
                 }
+                //Refresh the user token
+                token = gc.getToken(username);
+                List<String> groupsOfToken = token.getGroups();
+                for (int i = 0; i < groupsOfToken.size(); i++){
+                    System.out.println(groupsOfToken.get(i));
+                }
             }
         } 
         //FileServer Menu Handling
         else if (serverChoice == 2){
             //Connect to FileServer
             int filePort = 4321;
-            if (args[1] != null){
+            if (args.length > 1){
                 filePort = Integer.parseInt(args[1]);
             }
             fc.connect("localhost", filePort);  //Ask for server & port?
