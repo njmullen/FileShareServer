@@ -4,7 +4,7 @@ import java.util.List;
 
 public class RunUI {
   public static void main(String args[]) {
-    System.out.println("Hello, welcome to the UI.");
+    System.out.println("Welcome to the File Sharing Program!");
 
     //Initialize scanner and group and file clients
     Scanner scan = new Scanner(System.in);
@@ -14,14 +14,35 @@ public class RunUI {
     
     //Prompt the user to login to the server to authenticate their token and log in with
     //appropriate permissions
-    //TODO: Connect to file server
+    System.out.println("Default Connection Settings");
+    System.out.println("\tServer:\t\t\tlocalhost");
+    System.out.println("\tGroup Server Port:\t8765");
+    System.out.println("\tFile Server Port:\t4321");
+    System.out.print("Use Default Settings? (y/n): ");
+    String useDefault = scan.next();
+    while (!useDefault.equals("Y") && !useDefault.equals("y") && !useDefault.equals("N") && !useDefault.equals("n")){
+        System.out.println("Please enter (y/n): ");
+        useDefault = scan.next();
+    }
+
+    int groupPort = 8765;
+    int filePort = 4321;
+    String server = "localhost";
+
+    if (useDefault.equals("N") || useDefault.equals("n")){
+        System.out.println("Enter Server: ");
+        server = scan.next();
+        System.out.println("Enter Group Server Port: ");
+        groupPort = scan.nextInt();
+        System.out.println("Enter the File Server Port: ");
+        filePort = scan.nextInt();
+    }
+
+    System.out.println("\nLogin");
     System.out.println("Enter your username: ");
     String username = scan.next();
     int portNumber = 8765;
-    if (args.length > 0){
-        portNumber = Integer.parseInt(args[0]);
-    } 
-    gc.connect("localhost", portNumber);	//Ask for server & port?
+    gc.connect(server, groupPort);	//Ask for server & port?
     if (gc.isConnected()){
     	token = gc.getToken(username);
     	if (token == null){
@@ -40,8 +61,8 @@ public class RunUI {
     int serverChoice = -1;
     while(serverChoice != 0){
         System.out.println("Welcome, " + username + "!\n");
-        System.out.println("1. Perform GroupServer operations");
-        System.out.println("2. Connect to FileServer\n");
+        System.out.println("1. Group operations");
+        System.out.println("2. File operations\n");
         System.out.println("0. Disconnect and Exit\n");
         System.out.print("Select an option: ");
         serverChoice = scan.nextInt();
@@ -168,11 +189,7 @@ public class RunUI {
         //FileServer Menu Handling
         else if (serverChoice == 2){
             //Connect to FileServer
-            int filePort = 4321;
-            if (args.length > 1){
-                filePort = Integer.parseInt(args[1]);
-            }
-            fc.connect("localhost", filePort);  //Ask for server & port?
+            fc.connect(server, filePort); 
             if(fc.isConnected()){
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
