@@ -17,7 +17,11 @@ public class RunUI {
     //TODO: Connect to file server
     System.out.println("Enter your username: ");
     String username = scan.next();
-    gc.connect("localhost", 8765);	//Ask for server & port?
+    int portNumber = 8765;
+    if (args.length > 0){
+        portNumber = Integer.parseInt(args[0]);
+    } 
+    gc.connect("localhost", portNumber);	//Ask for server & port?
     if (gc.isConnected()){
     	token = gc.getToken(username);
     	if (token == null){
@@ -162,7 +166,11 @@ public class RunUI {
         //FileServer Menu Handling
         else if (serverChoice == 2){
             //Connect to FileServer
-            fc.connect("localhost", 4321);  //Ask for server & port?
+            int filePort = 4321;
+            if (args[1] != null){
+                filePort = Integer.parseInt(args[1]);
+            }
+            fc.connect("localhost", filePort);  //Ask for server & port?
             if(fc.isConnected()){
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
@@ -240,7 +248,7 @@ public class RunUI {
                 }
             }
             else{
-                System.out.println("Error! Unable to connect ot FileServer");
+                System.out.println("Error! Unable to connect to FileServer");
                 //TODO: Potentially handle this 
             } 
         }

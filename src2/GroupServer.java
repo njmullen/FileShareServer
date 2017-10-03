@@ -18,6 +18,7 @@ import java.util.*;
 public class GroupServer extends Server {
 
 	public static final int SERVER_PORT = 8765;
+	int currentPort = 8765;
 	public UserList userList;
 
 	public GroupServer() {
@@ -26,11 +27,12 @@ public class GroupServer extends Server {
 
 	public GroupServer(int _port) {
 		super(_port, "ALPHA");
+		currentPort = _port;
 	}
 
 	public void start() {
 		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
-		System.out.println("Running on port "+SERVER_PORT);
+		System.out.println("Running on port "+ currentPort);
 		String userFile = "UserList.bin";
 		Scanner console = new Scanner(System.in);
 		ObjectInputStream userStream;

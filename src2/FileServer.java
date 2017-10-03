@@ -13,6 +13,7 @@ import java.net.Socket;
 public class FileServer extends Server {
 	
 	public static final int SERVER_PORT = 4321;
+	int currentPort = 4321;
 	public static FileList fileList;
 	
 	public FileServer() {
@@ -21,6 +22,7 @@ public class FileServer extends Server {
 
 	public FileServer(int _port) {
 		super(_port, "FilePile");
+		currentPort = _port;
 	}
 	
 	public void start() {
