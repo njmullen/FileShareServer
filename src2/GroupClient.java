@@ -33,10 +33,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 				if(temp.size() == 1)
 				{
 					token = (UserToken)temp.get(0);
-					List<String> tokenGroups = token.getGroups();
-					for(int i = 0; i < tokenGroups.size(); i++){
-						System.out.println("GC/UT: " + tokenGroups.get(i));
-					}
 					return token;
 				}
 			}
