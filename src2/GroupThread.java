@@ -46,10 +46,21 @@ public class GroupThread extends Thread
 					else
 					{
 						UserToken yourToken = createToken(username); //Create a token
+						
+						String issuer = yourToken.getIssuer();
+						String subject = yourToken.getSubject();
+						List<String> groupList = yourToken.getGroups();
+
+						List<String> newGroupList = new ArrayList<String>();
+						for (int i = 0; i < groupList.size(); i++){
+							newGroupList.add(groupList.get(i));
+						}
+
+						Token token = new Token(issuer, subject, newGroupList);
 
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
-						response.addObject(yourToken);
+						response.addObject(token);
 						output.writeObject(response);
 					}
 				}
@@ -272,6 +283,10 @@ public class GroupThread extends Thread
 		{
 			//Issue a new token with server's name, user's name, and user's groups
 			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+			List<String> userGroups = my_gs.userList.getUserGroups(username);
+			for (int i = 0; i < userGroups.size(); i++){
+				System.out.println("Create TokeN: " + userGroups.get(i));
+			}
 			return yourToken;
 		}
 		else
@@ -427,7 +442,13 @@ public class GroupThread extends Thread
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
 
-			yourToken = createToken(username);		
+			yourToken = createToken(requester);
+
+			List<String> userGroups = yourToken.getGroups();
+			System.out.println("Created Groups");
+			for(int i = 0; i < userGroups.size(); i++){
+				System.out.println("U: " + userGroups.get(i));
+			}
 			return true;
 		} else {
 			//User does not exist

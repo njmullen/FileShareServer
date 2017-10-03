@@ -163,10 +163,6 @@ public class RunUI {
                 }
                 //Refresh the user token
                 token = gc.getToken(username);
-                List<String> groupsOfToken = token.getGroups();
-                for (int i = 0; i < groupsOfToken.size(); i++){
-                    System.out.println(groupsOfToken.get(i));
-                }
             }
         } 
         //FileServer Menu Handling
@@ -251,6 +247,7 @@ public class RunUI {
                             System.out.println("Invalid input: Please select an option 0-4");
                             break;
                     }
+                    token = gc.getToken(username);
                 }
             }
             else{
