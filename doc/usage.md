@@ -16,9 +16,6 @@ Omitting <portnumber> will default the file server to start on port 4321.
 
 ## Starting the UI
 
-Type `java RunUI <groupserver portnumber> <fileserver portnumber>` where <groupserver portnumber> and <fileserver portnumber> are optional integers for the desired ports to communicate with the group and file servers.
-Ommitting both integers will connect with the group server using port 8765, and the file server using port 4321.
-Ommiting the second integer will connect the group server with the entered integer, and the file server using port 4321.
-
-Once the UI is running, users can login and will be presented with a menu that gives two options: group operations and file operations.
+Type `java RunUI`, which will start the user interface. 
+Once the UI is running, users will have the option to either specify a desired server, group server port, and file server port, or use the defaults ("localhost", 8765, 4321). Then, users can login and will be presented with a menu that gives two options: group operations and file operations.
 Group operations contain group functionality (add user/delete user/group management) and file operations contain file functionality (upload/download/etc)
