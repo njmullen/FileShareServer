@@ -12,8 +12,7 @@ public class RunUI {
     FileClient fc = new FileClient();
     UserToken token = null;
     
-    //Prompt the user to login to the server to authenticate their token and log in with
-    //appropriate permissions
+    //Prompt the user to ask if they want to use default server settings or custom settings
     System.out.println("Default Connection Settings");
     System.out.println("\tServer:\t\t\tlocalhost");
     System.out.println("\tGroup Server Port:\t8765");
@@ -29,6 +28,7 @@ public class RunUI {
     int filePort = 4321;
     String server = "localhost";
 
+    //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
         System.out.println("Enter Server: ");
         server = scan.next();
@@ -38,11 +38,12 @@ public class RunUI {
         filePort = scan.nextInt();
     }
 
+    //Prompts the user for a login, then connects to the group server using the specified
+    //port and server and allows access if it can be authenticated by the group server
     System.out.println("\nLogin");
     System.out.println("Enter your username: ");
     String username = scan.next();
-    int portNumber = 8765;
-    gc.connect(server, groupPort);	//Ask for server & port?
+    gc.connect(server, groupPort);
     if (gc.isConnected()){
     	token = gc.getToken(username);
     	if (token == null){
@@ -188,7 +189,7 @@ public class RunUI {
         } 
         //FileServer Menu Handling
         else if (serverChoice == 2){
-            //Connect to FileServer
+            //Connect to FileServer with same port and server specified as above
             fc.connect(server, filePort); 
             if(fc.isConnected()){
                 System.out.println("Connected to FileServer");
@@ -197,6 +198,7 @@ public class RunUI {
                     fileMenuChoice = fileMenu();
                     String destFile, sourceFile, group, fileName;
                     switch(fileMenuChoice){
+                        //Upload a file
                         case 1:
                             System.out.println("Upload a file");
                             System.out.println("Enter the name of the local source file: ");
@@ -212,7 +214,7 @@ public class RunUI {
                                 System.out.println("Error! Unable to upload " + sourceFile);
                             }
                             break;
-
+                        //Download a file
                         case 2:
                             System.out.println("Download a file");
                             System.out.println("Enter the name of the source file on the server: ");
@@ -226,7 +228,7 @@ public class RunUI {
                                 System.out.println("Error! Unable to download " + sourceFile); 
                             }
                             break;
-
+                        //Delete a file
                         case 3:
                             System.out.println("Delete a file");
                             System.out.println("Enter the name of the file to be deleted");
@@ -238,16 +240,13 @@ public class RunUI {
                                 System.out.println("Error! Unable to delete " + fileName);
                             }
                             break;
-
+                        //List all files available to that user
                         case 4: 
                             System.out.println("List all files");
                             List<String> files = fc.listFiles(token);
                             if(files != null){
                                 int count = files.size();
-
-                                //TROUBLESHOOOTING
-                                System.out.println("count = " + count + "\n");
-
+                                System.out.println(count + " files available");
                                 for(int i = 0; i < count; i++){
                                     String file = files.get(i);
                                     System.out.println(file);
@@ -257,7 +256,6 @@ public class RunUI {
                                 System.out.println("Error! Unable to retrieve files list");
                             }
                             break;
-
                         case 0:
                             break;
                         default:
@@ -269,7 +267,6 @@ public class RunUI {
             }
             else{
                 System.out.println("Error! Unable to connect to FileServer");
-                //TODO: Potentially handle this 
             } 
         }
     }
@@ -279,7 +276,6 @@ public class RunUI {
   /*
    * Displays the options for operations on a group and returns the value selected
    * @return choice: user's selection from the menu
-   * TODO: Complete the operations, check for valid input
    */
   public static int groupMenu(){
         Scanner scan = new Scanner(System.in);

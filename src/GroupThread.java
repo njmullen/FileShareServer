@@ -209,18 +209,21 @@ public class GroupThread extends Thread
 					else
 					{
 						response = new Envelope("FAIL");
-						//TODO: add third check for null
+
 						if(message.getObjContents().get(0) != null)
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String usernameToAdd = (String)message.getObjContents().get(0); //Extract the username
-								String groupnameToAdd = (String)message.getObjContents().get(1); //Extract the groupname
-								UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
-
-								if(addUserToGroup(usernameToAdd, groupnameToAdd, yourToken))
+								if(message.getObjContents().get(2) != null)
 								{
-									response = new Envelope("OK"); //Success
+									String usernameToAdd = (String)message.getObjContents().get(0); //Extract the username
+									String groupnameToAdd = (String)message.getObjContents().get(1); //Extract the groupname
+									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+
+									if(addUserToGroup(usernameToAdd, groupnameToAdd, yourToken))
+									{
+										response = new Envelope("OK"); //Success
+									}
 								}
 							}
 						}
@@ -237,18 +240,21 @@ public class GroupThread extends Thread
 					else
 					{
 						response = new Envelope("FAIL");
-						//TODO: add third check for null
+
 						if(message.getObjContents().get(0) != null)
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String usernameToDelete = (String)message.getObjContents().get(0); //Extract the username
-								String groupnameToDelete = (String)message.getObjContents().get(1); //Extract the groupname
-								UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
-
-								if(deleteUserFromGroup(usernameToDelete, groupnameToDelete, yourToken))
+								if(message.getObjContents().get(2) != null)
 								{
-									response = new Envelope("OK"); //Success
+									String usernameToDelete = (String)message.getObjContents().get(0); //Extract the username
+									String groupnameToDelete = (String)message.getObjContents().get(1); //Extract the groupname
+									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+
+									if(deleteUserFromGroup(usernameToDelete, groupnameToDelete, yourToken))
+									{
+										response = new Envelope("OK"); //Success
+									}
 								}
 							}
 						}
@@ -283,10 +289,6 @@ public class GroupThread extends Thread
 		{
 			//Issue a new token with server's name, user's name, and user's groups
 			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
-			List<String> userGroups = my_gs.userList.getUserGroups(username);
-			for (int i = 0; i < userGroups.size(); i++){
-				System.out.println("Create TokeN: " + userGroups.get(i));
-			}
 			return yourToken;
 		}
 		else
@@ -445,10 +447,7 @@ public class GroupThread extends Thread
 			yourToken = createToken(requester);
 
 			List<String> userGroups = yourToken.getGroups();
-			System.out.println("Created Groups");
-			for(int i = 0; i < userGroups.size(); i++){
-				System.out.println("U: " + userGroups.get(i));
-			}
+
 			return true;
 		} else {
 			//User does not exist
