@@ -11,7 +11,7 @@ public class RunUI {
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
     UserToken token = null;
-    
+
     //Prompt the user to ask if they want to use default server settings or custom settings
     System.out.println("Default Connection Settings");
     System.out.println("\tServer:\t\t\tlocalhost");
@@ -75,7 +75,7 @@ public class RunUI {
 
         //Once the user has selected group/file server, displays operations and completes them
         //on the appropriate server
-        
+
         //GroupServer Menu Handling
         if (serverChoice == 1){
             int groupMenuChoice = -1;
@@ -186,11 +186,11 @@ public class RunUI {
                 //Refresh the user token
                 token = gc.getToken(username);
             }
-        } 
+        }
         //FileServer Menu Handling
         else if (serverChoice == 2){
             //Connect to FileServer with same port and server specified as above
-            fc.connect(server, filePort); 
+            fc.connect(server, filePort);
             if(fc.isConnected()){
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
@@ -225,7 +225,7 @@ public class RunUI {
                                 System.out.println(sourceFile + " succesfully downloaded as " + destFile);
                             }
                             else{
-                                System.out.println("Error! Unable to download " + sourceFile); 
+                                System.out.println("Error! Unable to download " + sourceFile);
                             }
                             break;
                         //Delete a file
@@ -241,7 +241,7 @@ public class RunUI {
                             }
                             break;
                         //List all files available to that user
-                        case 4: 
+                        case 4:
                             System.out.println("List all files");
                             List<String> files = fc.listFiles(token);
                             if(files != null){
@@ -267,10 +267,10 @@ public class RunUI {
             }
             else{
                 System.out.println("Error! Unable to connect to FileServer");
-            } 
+            }
         }
     }
-    
+
   }
 
   /*
@@ -280,7 +280,7 @@ public class RunUI {
   public static int groupMenu(){
         Scanner scan = new Scanner(System.in);
         System.out.println("\nGroup Server Menu");
-        System.out.println("1. Add a user");
+        System.out.println("1. Create a new user");
         System.out.println("2. Delete a user");
         System.out.println("3. Create a group");
         System.out.println("4. List members of a group");
