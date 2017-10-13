@@ -14,8 +14,9 @@ public class RunUI {
 
     //Prompt the user to ask if they want to use default server settings or custom settings
     System.out.println("Default Connection Settings");
-    System.out.println("\tServer:\t\t\tlocalhost");
+    System.out.println("\tGroup Server:\t\t\tlocalhost");
     System.out.println("\tGroup Server Port:\t8765");
+    System.out.println("\tFile Server:\t\t\tlocalhost");
     System.out.println("\tFile Server Port:\t4321");
     System.out.print("Use Default Settings? (y/n): ");
     String useDefault = scan.next();
@@ -26,14 +27,17 @@ public class RunUI {
 
     int groupPort = 8765;
     int filePort = 4321;
-    String server = "localhost";
+    String groupServerChoice = "localhost";
+    String fileServerChoice = "localhost";
 
     //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
-        System.out.println("Enter Server: ");
-        server = scan.next();
+        System.out.println("Enter Group Server: ");
+        groupServerChoice = scan.next();
         System.out.println("Enter Group Server Port: ");
         groupPort = scan.nextInt();
+        System.out.println("Enter File Server: ");
+        fileServerChoice = scan.next();
         System.out.println("Enter the File Server Port: ");
         filePort = scan.nextInt();
     }
@@ -43,7 +47,7 @@ public class RunUI {
     System.out.println("\nLogin");
     System.out.println("Enter your username: ");
     String username = scan.next();
-    gc.connect(server, groupPort);
+    gc.connect(groupServerChoice, groupPort);
     if (gc.isConnected()){
     	token = gc.getToken(username);
     	if (token == null){
@@ -190,7 +194,7 @@ public class RunUI {
         //FileServer Menu Handling
         else if (serverChoice == 2){
             //Connect to FileServer with same port and server specified as above
-            fc.connect(server, filePort);
+            fc.connect(fileServerChoice, filePort);
             if(fc.isConnected()){
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
