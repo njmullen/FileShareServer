@@ -40,18 +40,14 @@ If a token is modified by a user, they can increase their access rights and viol
 
 ### Mechanism
 
-To implement protection against token forgery, we can modify our Token class to do two things. First, we can compute a hash of the token’s information and sign it with the GroupServer’s private key, Gp-1. This allows any third party receiving a token to verify the token’s authenticity by verifying the signature using the GroupServer’s public key, Gp.
-
-Then, in our FileServer and GroupServer implementations, anytime a token is received from a client when connecting to a server, the server will extract the signature from the token being passed and pass that signature, along with the username stored in the token to the GroupServer. The GroupServer will then generate a token for that username with the information it already holds, and generate a signature over that new token. If the signature of that newly generated token matches the signature passed by the original token, it will permit the operations. If it does not, it will deny them. Having the GroupServer recompute a token and re-generate the signature will ensure that no contents of the token were modified while the signature remained intact. This verifies not only the signature of the token being passed, but the correctness of the information that token holds.
+To implement protection against token forgery, we can modify our GroupServer such that after it has exchanged and agreed on a symmetric key with the client, it will pass the token, which is signed with the GroupServer's private key. The client can then verify the authenticity of the token by verifying the signature with the GroupServer's public key, which is a known key. Whenever the client wishes to pass that token to a FileServer, the FileServer can also verify the token's authenticity using the GroupServer's public key.
 
 ### Issuance of a Token
-1. GroupServer computes a signature of the token with its private key, Gp-1, and passes it to the user
-2. The GroupServer then issues the token to the user requesting it
-3. The user can verify the signature using the GroupServer’s public key, Gp.
+1. GroupServer computes a signature of the token with its private key, Gp-1, and passes the signed token to the user
+2. The user can verify the signature using the GroupServer’s public key, Gp.
 
 ### Ensuring Against Forgery
-1. When the FileServer or GroupServer are passed a token to perform an operation, they will first verify the signature by asking GroupServer to compute a new token with the original token’s username. 
-2. If the signature over the new token matches that of the original token, it will permit the operation. Otherwise, it will deny it. 
+1. When the FileServer or GroupServer are passed a token to perform an operation, they will first verify the signature by verifying the signature with the GroupServer's public key
 
 ### Correctness
 
