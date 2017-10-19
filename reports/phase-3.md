@@ -42,20 +42,21 @@ To implement protection against token forgery, we can modify our Token class to 
 
 Then, in our FileServer and GroupServer implementations, anytime a token is received from a client when connecting to a server, the server will extract the signature from the token being passed and pass that signature, along with the username stored in the token to the GroupServer. The GroupServer will then generate a token for that username with the information it already holds, and generate a signature over that new token. If the signature of that newly generated token matches the signature passed by the original token, it will permit the operations. If it does not, it will deny them. Having the GroupServer recompute a token and re-generate the signature will ensure that no contents of the token were modified while the signature remained intact. This verifies not only the signature of the token being passed, but the correctness of the information that token holds.
 
-Issuance of a Token
-1.       GroupServer computes a signature of the token with its private key, Gp-1, and passes it to the user
-2.       The GroupServer then issues the token to the user requesting it
-3.       The user can verify the signature using the GroupServer’s public key, Gp.
+### Issuance of a Token
+1. GroupServer computes a signature of the token with its private key, Gp-1, and passes it to the user
+2. The GroupServer then issues the token to the user requesting it
+3. The user can verify the signature using the GroupServer’s public key, Gp.
 
-Ensuring Against Forgery
-1.       When the FileServer or GroupServer are passed a token to perform an operation, they will first verify the signature by asking GroupServer to compute a new token with the original token’s username. 
-2.    If the signature over the new token matches that of the original token, it will permit the operation. Otherwise, it will deny it. 
+### Ensuring Against Forgery
+1. When the FileServer or GroupServer are passed a token to perform an operation, they will first verify the signature by asking GroupServer to compute a new token with the original token’s username. 
+2. If the signature over the new token matches that of the original token, it will permit the operation. Otherwise, it will deny it. 
 
 Correctness
 This method of ensuring against token forgery is correct with a few assumptions:
-·         The GroupServer’s private key has not been compromised
-·         The verification of signatures and comparison of tokens are correct
-·         The original key exchange was not compromised 
+1. The GroupServer’s private key has not been compromised
+2. The verification of signatures and comparison of tokens are correct
+3. The original key exchange was not compromised 
+
 ## T3: Unauthorized File Servers 
 
 Threat Description 
