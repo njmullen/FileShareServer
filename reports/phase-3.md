@@ -40,10 +40,14 @@ If a token is modified by a user, they can increase their access rights and viol
 
 ### Mechanism
 
-To implement protection against token forgery, we can modify our GroupServer such that after it has exchanged and agreed on a symmetric key with the client, it will pass the token, which is signed with the GroupServer's private key. The client can then verify the authenticity of the token by verifying the signature with the GroupServer's public key, which is a known key. Whenever the client wishes to pass that token to a FileServer, the FileServer can also verify the token's authenticity using the GroupServer's public key.
+To implement protection against token forgery, we can modify our GroupServer such that after it has exchanged and agreed on a symmetric key with the client, it will use that shared symmetric key between the GroupServer and the client to pass the token, which has been signed with the GroupServer's private key. 
+
+The client can then verify the authenticity of the token by verifying the signature with the GroupServer's public key, which is a known key. Whenever the client wishes to pass that token to a FileServer, the FileServer can also verify the token's authenticity using the GroupServer's public key.
+
+The public/private keypair for the GroupServer is 2048-bit RSA which is sufficent for security against brute-force attacks, and efficent enough to complete operations quickly. The key exchange for the symmetric key and the symmetric key itself is described in further detail in T1.
 
 ### Issuance of a Token
-1. GroupServer computes a signature of the token with its private key, Gp-1, and passes the signed token to the user
+1. GroupServer computes a signature of the token with its private key, Gp-1, and passes the signed token to the user by encrypting it with the shared symmetric key
 2. The user can verify the signature using the GroupServer’s public key, Gp.
 
 ### Ensuring Against Forgery
