@@ -49,4 +49,15 @@ public class Token implements UserToken, java.io.Serializable {
    */
   public List<String> getGroups() {return groups;}
 
+  public byte[] getTokenString(){
+      StringBuilder sb = new StringBuilder();
+      sb.append(userName);
+      sb.append(issuer);
+      for (int i = 0; i < groups.size(); i++){
+        sb.append(groups.get(i));
+      }
+      String tokenString = sb.toString();
+      return tokenString.getBytes();
+  }
+
 }

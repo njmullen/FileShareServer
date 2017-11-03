@@ -3,23 +3,23 @@
  * On exit, the server saves the user list to file.
  */
 
-/*
- * TODO: This file will need to be modified to save state related to
- *       groups that are created in the system
- *
- */
-
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.*;
 import java.util.*;
-
+import java.util.*;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
 
 public class GroupServer extends Server {
 
 	public static final int SERVER_PORT = 8765;
 	int currentPort = 8765;
 	public UserList userList;
+	KeyPair keyPair = null;
+	KeyPairGenerator rsaKeyGenerator = null;
 
 	public GroupServer() {
 		super(SERVER_PORT, "ALPHA");
@@ -61,6 +61,33 @@ public class GroupServer extends Server {
 			userList.addUser(username);
 			userList.addGroup(username, "ADMIN");
 			userList.addOwnership(username, "ADMIN");
+
+			//Create the public/private keypair for the server
+			//Generate the keypair
+			try{
+				rsaKeyGenerator = KeyPairGenerator.getInstance("RSA");
+	        	rsaKeyGenerator.initialize(2048);
+	        	keyPair = rsaKeyGenerator.generateKeyPair();
+
+				PublicKey publicKey = keyPair.getPublic();
+	    		PrivateKey privateKey = keyPair.getPrivate();
+
+				//Write out the public key
+				FileOutputStream publicKeyWrite = new FileOutputStream("groupPublicKey");
+				byte[] pubKey = publicKey.getEncoded();
+				publicKeyWrite.write(pubKey);
+				publicKeyWrite.close();
+
+				//Write out the private key
+				FileOutputStream privateKeyWrite = new FileOutputStream("groupPrivateKey");
+				byte[] privKey = privateKey.getEncoded();
+				privateKeyWrite.write(privKey);
+				privateKeyWrite.close();
+			} catch(Exception ex){
+				ex.printStackTrace();
+			}
+			
+			
 		}
 		catch(IOException e)
 		{
@@ -71,6 +98,9 @@ public class GroupServer extends Server {
 		{
 			System.out.println("Error reading from UserList file");
 			System.exit(-1);
+		}
+		catch(Exception ex){
+			ex.printStackTrace();
 		}
 
 		//Autosave Daemon. Saves lists every 5 minutes
