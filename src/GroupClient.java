@@ -5,6 +5,10 @@ import java.util.List;
 import java.io.ObjectInputStream;
 import java.io.*;
 import java.util.*;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
@@ -31,8 +35,48 @@ public class GroupClient extends Client implements GroupClientInterface {
 				temp = response.getObjContents();
 
 				if(temp.size() == 1)
-				{
+				{	
+					//Set security provider and read private key from file
+					Security.addProvider(new BouncyCastleProvider());
 					token = (UserToken)temp.get(0);
+
+					try {
+						File privateKeyFile = new File("groupPrivateKey");
+						FileInputStream input = new FileInputStream(privateKeyFile);
+						byte[] privateKeyBytes = new byte[input.available()];
+						input.read(privateKeyBytes);
+						input.close();
+
+						PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+						KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+						PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+						byte[] tokenString = token.getTokenString();
+
+						Signature signature = Signature.getInstance("RSA");
+						signature.initSign(privateKey);
+	            		signature.update(tokenString);
+	            		byte[] signatureBytes = signature.sign();
+
+	            		//Verifies token signature
+	            		File publicKeyFile = new File("groupPublicKey");
+	            		FileInputStream input2 = new FileInputStream(publicKeyFile);
+	            		byte[] publicKeyBytes = new byte[input2.available()];
+	            		input2.read(publicKeyBytes);
+	            		input2.close();
+
+	            		X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+						PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
+
+	            		signature.initVerify(publicKey);
+	            		signature.update(tokenString);
+	            		boolean signaturePass = signature.verify(signatureBytes);
+	            		System.out.println("Signature " + signaturePass);
+					} catch(Exception ex){
+						ex.printStackTrace();
+					}
+
+					
 					return token;
 				}
 			}
