@@ -27,7 +27,7 @@ public interface GroupClientInterface
      */
     public void disconnect();
 
-
+    public boolean checkPassword(String username, String password);
     /**
      * Method used to get a token from the group server.  Right now,
      * there are no security checks.
@@ -51,7 +51,7 @@ public interface GroupClientInterface
      * @return true if the new user was created, false otherwise
      *
      */
-    public boolean createUser(final String username, final UserToken token);
+    public boolean createUser(final String username, final String password, final UserToken token);
 
 
     /**

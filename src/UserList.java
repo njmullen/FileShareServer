@@ -1,5 +1,8 @@
 /* This list represents the users on the server */
 import java.util.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 
 	public class UserList implements java.io.Serializable {
@@ -10,10 +13,15 @@ import java.util.*;
 		private static final long serialVersionUID = 7600343803563417992L;
 		private Hashtable<String, User> list = new Hashtable<String, User>();
 		
-		public synchronized void addUser(String username)
+		public synchronized void addUser(String username, byte[] password)
 		{
 			User newUser = new User();
+  			newUser.setPassword(password);
 			list.put(username, newUser);
+		}
+
+		public byte[] getPassword(String username){
+			return list.get(username).getPassword();
 		}
 		
 		public synchronized void deleteUser(String username)
@@ -77,11 +85,20 @@ import java.util.*;
 		private static final long serialVersionUID = -6699986336399821598L;
 		private ArrayList<String> groups;
 		private ArrayList<String> ownership;
+		private byte[] password;
 		
 		public User()
 		{
 			groups = new ArrayList<String>();
 			ownership = new ArrayList<String>();
+		}
+
+		public void setPassword(byte[] passwordHash){
+			this.password = passwordHash;
+		}
+
+		public byte[] getPassword(){
+			return password;
 		}
 		
 		public ArrayList<String> getGroups()

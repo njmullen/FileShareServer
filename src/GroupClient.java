@@ -9,8 +9,41 @@ import java.security.*;
 import javax.crypto.*;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
+
 
 public class GroupClient extends Client implements GroupClientInterface {
+
+	public boolean checkPassword(String username, String password){
+		Envelope message = null;
+		Envelope response = null;
+		try {
+			message = new Envelope("CHECKPWD");
+			byte[] passwordHash = null;
+			try {
+				DigestSHA3 md = new DigestSHA3(256); 
+  				md.update(password.getBytes("UTF-8"));
+  				passwordHash = md.digest();
+			} catch(Exception ex) {
+				ex.printStackTrace();
+			}
+			message.addObject(username);
+			message.addObject(passwordHash);
+			output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				return true;
+			} else {
+				return false;
+			}
+		} catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return false;
+	}
 
 	 public UserToken getToken(String username)
 	 {
@@ -92,14 +125,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 }
 
-	 public boolean createUser(String username, UserToken token)
+	 public boolean createUser(String username, String password, UserToken token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
+				byte[] passwordHash = null;
+				try {
+					DigestSHA3 md = new DigestSHA3(256); 
+	  				md.update(password.getBytes("UTF-8"));
+	  				passwordHash = md.digest();
+				} catch(Exception ex) {
+					ex.printStackTrace();
+				}
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
 				message.addObject(username); //Add user name string
+				message.addObject(passwordHash);
 				message.addObject(token); //Add the requester's token
 				output.writeObject(message);
 

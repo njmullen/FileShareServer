@@ -12,6 +12,8 @@ import java.security.*;
 import javax.crypto.*;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class GroupServer extends Server {
 
@@ -55,10 +57,21 @@ public class GroupServer extends Server {
 			System.out.println("No users currently exist. Your account will be the administrator.");
 			System.out.print("Enter your username: ");
 			String username = console.next();
+			System.out.println("Enter a password: ");
+			String password = console.next();
+
+			byte[] passwordHash = null;
+			try {
+				DigestSHA3 md = new DigestSHA3(256); 
+  				md.update(password.getBytes("UTF-8"));
+  				passwordHash = md.digest();
+			} catch(Exception ex) {
+				ex.printStackTrace();
+			}
 
 			//Create a new list, add current user to the ADMIN group. They now own the ADMIN group.
 			userList = new UserList();
-			userList.addUser(username);
+			userList.addUser(username, passwordHash);
 			userList.addGroup(username, "ADMIN");
 			userList.addOwnership(username, "ADMIN");
 

@@ -47,8 +47,16 @@ public class RunUI {
     System.out.println("\nLogin");
     System.out.println("Enter your username: ");
     String username = scan.next();
+    System.out.println("Enter your password: ");
+    String passwordEntry = scan.next();
     gc.connect(groupServerChoice, groupPort);
     if (gc.isConnected()){
+        //Checks to see if the password is invalid; denies entry if it is
+        if (!gc.checkPassword(username, passwordEntry)){
+            System.out.println("Invalid password");
+            gc.disconnect();
+            System.exit(0);
+        }
     	token = gc.getToken(username);
     	if (token == null){
     		System.out.println("Invalid username");
@@ -91,9 +99,11 @@ public class RunUI {
                         System.out.println("Create a User");
                         System.out.println("Enter username to be created: ");
                         String newUsername = scan.next();
+                        System.out.println("Set a password for that user: ");
+                        String password = scan.next();
                         //Checks that current logged in user is an admin, if not, forbids the operation
                         if(token.getGroups().contains("ADMIN")){
-                            if(gc.createUser(newUsername, token)){
+                            if(gc.createUser(newUsername, password, token)){
                                 System.out.println(newUsername + " added succesfully!");
                             } else {
                                 System.out.println("Error! Unable to add " + newUsername);
