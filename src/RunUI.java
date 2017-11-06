@@ -22,9 +22,9 @@ public class RunUI {
 
     //Prompt the user to ask if they want to use default server settings or custom settings
     System.out.println("Default Connection Settings");
-    System.out.println("\tGroup Server:\t\t\tlocalhost");
+    System.out.println("\tGroup Server:\t\tlocalhost");
     System.out.println("\tGroup Server Port:\t8765");
-    System.out.println("\tFile Server:\t\t\tlocalhost");
+    System.out.println("\tFile Server:\t\tlocalhost");
     System.out.println("\tFile Server Port:\t4321");
     System.out.print("Use Default Settings? (y/n): ");
     String useDefault = scan.next();
@@ -50,28 +50,23 @@ public class RunUI {
         filePort = scan.nextInt();
     }
 
-    //Prompts the user for a login, then connects to the group server using the specified
-    //port and server and allows access if it can be authenticated by the group server
-    System.out.println("\nLogin");
-    System.out.println("Enter your username: ");
-    String username = scan.next();
-    System.out.println("Enter your password: ");
-    String passwordEntry = scan.next();
     gc.connect(groupServerChoice, groupPort);
+
     if (gc.isConnected()){
         //Asks the server for its public key
-        byte[] key = gc.getPublicKey();
-        System.out.println("KEY " + key);
+        PublicKey key = gc.getPublicKey();
         boolean isMatch = false;
         //Check against list of known public keys
         try {
             ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
-            List<byte[]> keyList = (List<byte[]>) in.readObject();
+            List<PublicKey> keyList = (List<PublicKey>) in.readObject();
             in.close();
 
+            //If the list of known keys contains this one, allow entry
             if(keyList.contains(key)){
                 isMatch = true;
             }
+        //If it cannot find a list of trusted keys, ask if the user wants to start one
         } catch (FileNotFoundException ex){
             System.out.println("New server connection");
             System.out.println("Server key: " + key);
@@ -81,7 +76,7 @@ public class RunUI {
             if (connectToKey.equals("Y")){
                 //Add to new file called knownServers.txt
                 try {
-                    List<byte[]> list = new ArrayList<byte[]>();
+                    List<PublicKey> list = new ArrayList<PublicKey>();
                     list.add(key);
                     ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("knownServers.txt"));
                     out.writeObject(list);
@@ -109,7 +104,7 @@ public class RunUI {
                 //Add to new file called knownServers.txt
                 try {
                     ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
-                    List<byte[]> keyList = (List<byte[]>) in.readObject();
+                    List<PublicKey> keyList = (List<PublicKey>) in.readObject();
                     in.close();
 
                     keyList.add(key);
@@ -124,7 +119,14 @@ public class RunUI {
                 System.exit(0);
             }
         }
-        
+
+        //Prompts the user for a login, then connects to the group server using the specified
+        //port and server and allows access if it can be authenticated by the group server
+        System.out.println("\nLogin");
+        System.out.println("Enter your username: ");
+        String username = scan.next();
+        System.out.println("Enter your password: ");
+        String passwordEntry = scan.next();
 
         //Checks to see if the password is invalid; denies entry if it is
         if (!gc.checkPassword(username, passwordEntry)){

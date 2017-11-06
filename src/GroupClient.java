@@ -15,19 +15,25 @@ import org.bouncycastle.util.encoders.Hex;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
-	public byte[] getPublicKey(){
+	public PublicKey getPublicKey(){
 		byte[] publicKeyBytes = null;
+		PublicKey publicKey = null;
+
 		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			File publicKeyFile = new File("groupPublicKey");
 			FileInputStream input = new FileInputStream(publicKeyFile);
 			publicKeyBytes = new byte[input.available()];
 			input.read(publicKeyBytes);
 			input.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKeyBytes;
+		return publicKey;
 	}
 
 	public boolean checkPassword(String username, String password){

@@ -27,7 +27,7 @@ public interface GroupClientInterface
      */
     public boolean connect(final String server, final int port);
 
-    public byte[] getPublicKey();
+    public PublicKey getPublicKey();
 
     /**
      * Close down the connection to the group server.
