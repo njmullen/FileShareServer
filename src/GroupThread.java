@@ -79,9 +79,10 @@ public class GroupThread extends Thread
 							if(message.getObjContents().get(1) != null)
 							{
 								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								byte[] password = (byte[])message.getObjContents().get(1);
+								UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
 
-								if(createUser(username, yourToken))
+								if(createUser(username, password, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -266,6 +267,20 @@ public class GroupThread extends Thread
 				{
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
+				} else if(message.getMessage().equals("CHECKPWD")){ //Client wants to check a password
+					if(message.getObjContents().size() < 2){
+						response = new Envelope("FAIL");
+					}
+					String username = (String)message.getObjContents().get(0);
+					byte[] passwordHash = (byte[])message.getObjContents().get(1);
+
+					if(checkPassword(username, passwordHash)){
+						response = new Envelope("OK");
+					} else {
+						response = new Envelope("FAIL");
+					}
+
+					output.writeObject(response);
 				}
 				else
 				{
@@ -278,6 +293,15 @@ public class GroupThread extends Thread
 		{
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace(System.err);
+		}
+	}
+
+	private boolean checkPassword(String username, byte[] password){
+		if (my_gs.userList.checkUser(username)){
+			byte[] retrievedPassword = my_gs.userList.getPassword(username);
+			return Arrays.equals(password, retrievedPassword);
+		} else {
+			return false;
 		}
 	}
 
@@ -299,7 +323,7 @@ public class GroupThread extends Thread
 
 
 	//Method to create a user
-	private boolean createUser(String username, UserToken yourToken)
+	private boolean createUser(String username, byte[] password, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
 
@@ -318,7 +342,7 @@ public class GroupThread extends Thread
 				}
 				else
 				{
-					my_gs.userList.addUser(username);
+					my_gs.userList.addUser(username, password);
 					return true;
 				}
 			}

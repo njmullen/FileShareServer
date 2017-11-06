@@ -5,8 +5,63 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class FileClient extends Client implements FileClientInterface {
+
+	public byte[] sendRandomChallenge(byte[] challenge){
+		//Decrypt the random challenge with private key and return it
+		Security.addProvider(new BouncyCastleProvider());
+		PrivateKey privateKey = null;
+		byte[] decryptedChallenge = null;
+		try {
+			File privateKeyFile = new File("filePrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
+            //Decrypt the string using the Cipher
+            decryptedChallenge = RSACipher.doFinal(challenge);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+		
+		return decryptedChallenge;
+	}
+
+	public PublicKey getPublicKey(){
+		byte[] publicKeyBytes = null;
+		PublicKey publicKey = null;
+
+		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			File publicKeyFile = new File("filePublicKey");
+			FileInputStream input = new FileInputStream(publicKeyFile);
+			publicKeyBytes = new byte[input.available()];
+			input.read(publicKeyBytes);
+			input.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+
+		return publicKey;
+	}
 
 	public boolean delete(String filename, UserToken token) {
 		String remotePath;

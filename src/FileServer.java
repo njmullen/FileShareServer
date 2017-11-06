@@ -9,12 +9,20 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class FileServer extends Server {
 
 	public static final int SERVER_PORT = 4321;
 	int currentPort = 4321;
 	public static FileList fileList;
+	KeyPair keyPair = null;
+	KeyPairGenerator rsaKeyGenerator = null;
 
 	public FileServer() {
 		super(SERVER_PORT, "FilePile");
@@ -44,6 +52,29 @@ public class FileServer extends Server {
 		catch(FileNotFoundException e)
 		{
 			System.out.println("FileList Does Not Exist. Creating FileList...");
+			//Creates the public/private keypair for the fileserver
+			try{
+				rsaKeyGenerator = KeyPairGenerator.getInstance("RSA");
+	        	rsaKeyGenerator.initialize(2048);
+	        	keyPair = rsaKeyGenerator.generateKeyPair();
+
+				PublicKey publicKey = keyPair.getPublic();
+	    		PrivateKey privateKey = keyPair.getPrivate();
+
+				//Write out the public key
+				FileOutputStream publicKeyWrite = new FileOutputStream("filePublicKey");
+				byte[] pubKey = publicKey.getEncoded();
+				publicKeyWrite.write(pubKey);
+				publicKeyWrite.close();
+
+				//Write out the private key
+				FileOutputStream privateKeyWrite = new FileOutputStream("filePrivateKey");
+				byte[] privKey = privateKey.getEncoded();
+				privateKeyWrite.write(privKey);
+				privateKeyWrite.close();
+			} catch(Exception ex){
+				ex.printStackTrace();
+			}
 
 			fileList = new FileList();
 

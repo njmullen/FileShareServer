@@ -1,4 +1,11 @@
 import java.util.List;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * Interface describing the operations that must be supported by the
@@ -20,6 +27,9 @@ public interface GroupClientInterface
      */
     public boolean connect(final String server, final int port);
 
+    public PublicKey getPublicKey();
+
+    public byte[] sendRandomChallenge(byte[] challenge);
 
     /**
      * Close down the connection to the group server.
@@ -27,7 +37,7 @@ public interface GroupClientInterface
      */
     public void disconnect();
 
-
+    public boolean checkPassword(String username, String password);
     /**
      * Method used to get a token from the group server.  Right now,
      * there are no security checks.
@@ -51,7 +61,7 @@ public interface GroupClientInterface
      * @return true if the new user was created, false otherwise
      *
      */
-    public boolean createUser(final String username, final UserToken token);
+    public boolean createUser(final String username, final String password, final UserToken token);
 
 
     /**

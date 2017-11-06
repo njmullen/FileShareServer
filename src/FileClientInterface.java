@@ -1,5 +1,12 @@
 
 import java.util.List;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 /**
  * Interface describing the operations that must be supported by the
@@ -21,6 +28,9 @@ public interface FileClientInterface
      */
     public boolean connect(final String server, final int port);
 
+    public PublicKey getPublicKey();
+
+    public byte[] sendRandomChallenge(byte[] challenge);
 
     /**
      * Close down the connection to the file server.
