@@ -13,8 +13,22 @@ import java.security.*;
 import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
 import org.bouncycastle.util.encoders.Hex;
 
-
 public class GroupClient extends Client implements GroupClientInterface {
+
+	public byte[] getPublicKey(){
+		byte[] publicKeyBytes = null;
+		try {
+			File publicKeyFile = new File("groupPublicKey");
+			FileInputStream input = new FileInputStream(publicKeyFile);
+			publicKeyBytes = new byte[input.available()];
+			input.read(publicKeyBytes);
+			input.close();
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+
+		return publicKeyBytes;
+	}
 
 	public boolean checkPassword(String username, String password){
 		Envelope message = null;

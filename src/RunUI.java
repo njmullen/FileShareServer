@@ -1,6 +1,14 @@
 import java.util.Scanner;
 import java.util.*;
 import java.util.List;
+import java.io.*;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class RunUI {
   public static void main(String args[]) {
@@ -51,6 +59,73 @@ public class RunUI {
     String passwordEntry = scan.next();
     gc.connect(groupServerChoice, groupPort);
     if (gc.isConnected()){
+        //Asks the server for its public key
+        byte[] key = gc.getPublicKey();
+        System.out.println("KEY " + key);
+        boolean isMatch = false;
+        //Check against list of known public keys
+        try {
+            ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
+            List<byte[]> keyList = (List<byte[]>) in.readObject();
+            in.close();
+
+            if(keyList.contains(key)){
+                isMatch = true;
+            }
+        } catch (FileNotFoundException ex){
+            System.out.println("New server connection");
+            System.out.println("Server key: " + key);
+            System.out.println("Connect? [Y/N] *Use capital Y, add error check here*");
+            String connectToKey = scan.next();
+            //Add error checking
+            if (connectToKey.equals("Y")){
+                //Add to new file called knownServers.txt
+                try {
+                    List<byte[]> list = new ArrayList<byte[]>();
+                    list.add(key);
+                    ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("knownServers.txt"));
+                    out.writeObject(list);
+                    out.close();
+                    isMatch = true;
+                } catch (Exception exa){
+                    ex.printStackTrace();
+                }
+            } else {
+                System.out.println("Not trusted. exiting");
+                System.exit(0);
+            }
+        } catch (Exception exd) {
+            exd.printStackTrace();
+        }
+
+        if (!isMatch){
+            //If didn't find public key, but file already exists, ask if want to connect
+            System.out.println("New server connection");
+            System.out.println("Server key: " + key);
+            System.out.println("Connect? [Y/N] *Use capital Y, add error check here*");
+            String connectToKey = scan.next();
+            //Add error checking
+            if (connectToKey.equals("Y")){
+                //Add to new file called knownServers.txt
+                try {
+                    ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
+                    List<byte[]> keyList = (List<byte[]>) in.readObject();
+                    in.close();
+
+                    keyList.add(key);
+                    ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("knownServers.txt"));
+                    out.writeObject(keyList);
+                    out.close();
+                } catch (Exception ex){
+                    ex.printStackTrace();
+                }
+            } else {
+                System.out.println("Not trusted. exiting");
+                System.exit(0);
+            }
+        }
+        
+
         //Checks to see if the password is invalid; denies entry if it is
         if (!gc.checkPassword(username, passwordEntry)){
             System.out.println("Invalid password");

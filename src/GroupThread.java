@@ -267,7 +267,7 @@ public class GroupThread extends Thread
 				{
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
-				} else if(message.getMessage().equals("CHECKPWD")){
+				} else if(message.getMessage().equals("CHECKPWD")){ //Client wants to check a password
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
