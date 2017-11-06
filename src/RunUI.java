@@ -19,6 +19,7 @@ public class RunUI {
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
     UserToken token = null;
+    String username = null;
 
     //Prompt the user to ask if they want to use default server settings or custom settings
     System.out.println("Default Connection Settings");
@@ -68,12 +69,16 @@ public class RunUI {
             }
         //If it cannot find a list of trusted keys, ask if the user wants to start one
         } catch (FileNotFoundException ex){
-            System.out.println("New server connection");
-            System.out.println("Server key: " + key);
-            System.out.println("Connect? [Y/N] *Use capital Y, add error check here*");
+            System.out.println("Attempting to connect to server. Please verify the server's public key");
+            System.out.println("\nGroupServer Key: " + key);
+            System.out.println("\nConnect? (y/n): ");
             String connectToKey = scan.next();
-            //Add error checking
-            if (connectToKey.equals("Y")){
+            while (!connectToKey.equals("Y") && !connectToKey.equals("y") && !connectToKey.equals("N") && !connectToKey.equals("n")){
+                System.out.println("Please enter (y/n): ");
+                connectToKey = scan.next();
+            }
+
+            if (connectToKey.equals("Y") || connectToKey.equals("y")){
                 //Add to new file called knownServers.txt
                 try {
                     List<PublicKey> list = new ArrayList<PublicKey>();
@@ -95,12 +100,15 @@ public class RunUI {
 
         if (!isMatch){
             //If didn't find public key, but file already exists, ask if want to connect
-            System.out.println("New server connection");
-            System.out.println("Server key: " + key);
-            System.out.println("Connect? [Y/N] *Use capital Y, add error check here*");
+            System.out.println("Attempting to connect to server. Please verify the server's public key");
+            System.out.println("\nGroupServer Key: " + key);
+            System.out.println("\nConnect? (y/n): ");
             String connectToKey = scan.next();
-            //Add error checking
-            if (connectToKey.equals("Y")){
+            while (!connectToKey.equals("Y") && !connectToKey.equals("y") && !connectToKey.equals("N") && !connectToKey.equals("n")){
+                System.out.println("Please enter (y/n): ");
+                connectToKey = scan.next();
+            }
+            if (connectToKey.equals("Y") || connectToKey.equals("y")){
                 //Add to new file called knownServers.txt
                 try {
                     ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
@@ -124,16 +132,31 @@ public class RunUI {
         //port and server and allows access if it can be authenticated by the group server
         System.out.println("\nLogin");
         System.out.println("Enter your username: ");
-        String username = scan.next();
+        username = scan.next();
         System.out.println("Enter your password: ");
         String passwordEntry = scan.next();
+        int passwordAttempts = 1;
 
-        //Checks to see if the password is invalid; denies entry if it is
-        if (!gc.checkPassword(username, passwordEntry)){
-            System.out.println("Invalid password");
-            gc.disconnect();
+        //Checks to see if the password is invalid; denies entry if it is entered incorrectly
+        //5 times
+        //TODO: Disable account after 5 incorrect passwords?
+        while (!gc.checkPassword(username, passwordEntry) && passwordAttempts <= 5){
+            System.out.println("Invalid username or password. Please try again");
+            System.out.println("Enter your username: ");
+            username = scan.next();
+            System.out.println("Enter your password: ");
+            passwordEntry = scan.next();
+            passwordAttempts++;
+        }
+        //Denies entry if more than 5 attempts were made
+        if(passwordAttempts > 5){
+            System.out.println("Incorrect password. Too many attempts. Exiting");
             System.exit(0);
         }
+
+        //If password was entered succesfully, grab the users token.
+        //If the username doesn't exist, throw invalid username, though this would have 
+        //said invalid password and kicked user out before this is reached
     	token = gc.getToken(username);
     	if (token == null){
     		System.out.println("Invalid username");
@@ -283,6 +306,81 @@ public class RunUI {
             //Connect to FileServer with same port and server specified as above
             fc.connect(fileServerChoice, filePort);
             if(fc.isConnected()){
+                //Check if FileServer key has been trusted before, if not, ask user to
+                //verify FileServer's piublic key
+                PublicKey fileKey = fc.getPublicKey();
+                boolean isMatch = false;
+                //Check against list of known public keys
+                try {
+                    ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
+                    List<PublicKey> keyList = (List<PublicKey>) in.readObject();
+                    in.close();
+
+                    //If the list of known keys contains this one, allow entry
+                    if(keyList.contains(fileKey)){
+                        isMatch = true;
+                    }
+                //If it cannot find a list of trusted keys, ask if the user wants to start one
+                } catch (FileNotFoundException ex){
+                    System.out.println("Attempting to connect to server. Please verify the server's public key");
+                    System.out.println("\nFileServer Key: " + fileKey);
+                    System.out.println("\nConnect? (y/n): ");
+                    String connectToKey = scan.next();
+                    while (!connectToKey.equals("Y") && !connectToKey.equals("y") && !connectToKey.equals("N") && !connectToKey.equals("n")){
+                        System.out.println("Please enter (y/n): ");
+                        connectToKey = scan.next();
+                    }
+
+                    if (connectToKey.equals("Y") || connectToKey.equals("y")){
+                        //Add to new file called knownServers.txt
+                        try {
+                            List<PublicKey> list = new ArrayList<PublicKey>();
+                            list.add(fileKey);
+                            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("knownServers.txt"));
+                            out.writeObject(list);
+                            out.close();
+                            isMatch = true;
+                        } catch (Exception exa){
+                            ex.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("Not trusted. exiting");
+                        System.exit(0);
+                    }
+                } catch (Exception exd) {
+                    exd.printStackTrace();
+                }
+
+                if (!isMatch){
+                    //If didn't find public key, but file already exists, ask if want to connect
+                    System.out.println("Attempting to connect to server. Please verify the server's public key");
+                    System.out.println("\nFileServer Key: " + fileKey);
+                    System.out.println("\nConnect? (y/n): ");
+                    String connectToKey = scan.next();
+                    while (!connectToKey.equals("Y") && !connectToKey.equals("y") && !connectToKey.equals("N") && !connectToKey.equals("n")){
+                        System.out.println("Please enter (y/n): ");
+                        connectToKey = scan.next();
+                    }
+                    if (connectToKey.equals("Y") || connectToKey.equals("y")){
+                        //Add to new file called knownServers.txt
+                        try {
+                            ObjectInputStream in = new ObjectInputStream(new FileInputStream("knownServers.txt"));
+                            List<PublicKey> keyList = (List<PublicKey>) in.readObject();
+                            in.close();
+
+                            keyList.add(fileKey);
+                            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("knownServers.txt"));
+                            out.writeObject(keyList);
+                            out.close();
+                        } catch (Exception ex){
+                            ex.printStackTrace();
+                        }
+                    } else {
+                        System.out.println("Not trusted. exiting");
+                        System.exit(0);
+                    }
+                }
+
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
                 while(fileMenuChoice != 0){

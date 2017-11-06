@@ -5,8 +5,36 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.security.*;
+import javax.crypto.*;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class FileClient extends Client implements FileClientInterface {
+
+	public PublicKey getPublicKey(){
+		byte[] publicKeyBytes = null;
+		PublicKey publicKey = null;
+
+		try {
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			File publicKeyFile = new File("filePublicKey");
+			FileInputStream input = new FileInputStream(publicKeyFile);
+			publicKeyBytes = new byte[input.available()];
+			input.read(publicKeyBytes);
+			input.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+
+		return publicKey;
+	}
 
 	public boolean delete(String filename, UserToken token) {
 		String remotePath;
