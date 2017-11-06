@@ -15,6 +15,33 @@ import org.bouncycastle.util.encoders.Hex;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
+	public byte[] sendRandomChallenge(byte[] challenge){
+		//Decrypt the random challenge with private key and return it
+		Security.addProvider(new BouncyCastleProvider());
+		PrivateKey privateKey = null;
+		byte[] decryptedChallenge = null;
+		try {
+			File privateKeyFile = new File("groupPrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
+            //Decrypt the string using the Cipher
+            decryptedChallenge = RSACipher.doFinal(challenge);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+		
+		return decryptedChallenge;
+	}
+
 	public PublicKey getPublicKey(){
 		byte[] publicKeyBytes = null;
 		PublicKey publicKey = null;

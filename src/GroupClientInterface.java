@@ -29,6 +29,8 @@ public interface GroupClientInterface
 
     public PublicKey getPublicKey();
 
+    public byte[] sendRandomChallenge(byte[] challenge);
+
     /**
      * Close down the connection to the group server.
      *
