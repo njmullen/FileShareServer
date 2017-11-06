@@ -152,8 +152,48 @@ public class RunUI {
         } 
 
         //Do D-H Exchange
+        DHParameterSpec dhSpec = null;
+        try {
+            AlgorithmParameterGenerator dhGenerator = AlgorithmParameterGenerator.getInstance("DH");
+            dhGenerator.init(1024, new SecureRandom());
+            AlgorithmParameters dhParameters = dhGenerator.generateParameters();
+            dhSpec = (DHParameterSpec)dhParameters.getParameterSpec(DHParameterSpec.class);
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
 
-        //Create shared key K
+        Random random = new Random();
+
+        //s = the secret number that the server generates
+        //p = the prime number 
+        //g = prime number generator 
+        //S = the calculated half key of the server (g^s mod p)
+        BigInteger c = new BigInteger(1024, random);
+        BigInteger p = dhSpec.getP();
+        BigInteger g = dhSpec.getG();
+        BigInteger C = g.modPow(c, p);
+
+        BigInteger S = gc.performDiffie(p, g, C, 0);
+        BigInteger dhKey = S.modPow(c, p);
+
+        //Generate AES key with 1st 16 bits of DH key
+        byte[] dhKeyBytes = dhKey.toByteArray();
+        byte[] shortBytes = new byte[16];
+
+        for(int i = 0; i < 16; i++){
+            shortBytes[i] = dhKeyBytes[i];
+        }
+
+        Key AESKey = null;
+        try{
+            AESKey = SecretKeySpec(shortBytes, "AES");
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+        }
+
+        System.out.println("Performed Diffie-Hellman with GroupServer - Generated session key");
+        System.out.println("User-Side Key: " + AESKey.toEncoded().toString());
 
 
         //Prompts the user for a login, then connects to the group server using the specified

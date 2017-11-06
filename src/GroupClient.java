@@ -5,8 +5,13 @@ import java.util.List;
 import java.io.ObjectInputStream;
 import java.io.*;
 import java.util.*;
+
 import java.security.*;
 import javax.crypto.*;
+import javax.crypto.spec.IVParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
 import java.security.*;
@@ -15,6 +20,9 @@ import org.bouncycastle.util.encoders.Hex;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	
 	public byte[] sendRandomChallenge(byte[] challenge){
 		//Decrypt the random challenge with private key and return it
 		Security.addProvider(new BouncyCastleProvider());
@@ -156,7 +164,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 						ex.printStackTrace();
 					}
 
-					
 					return token;
 				}
 			}
@@ -170,6 +177,32 @@ public class GroupClient extends Client implements GroupClientInterface {
 			return null;
 		}
 
+	 }
+
+	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
+	 	Random random = new Random();
+	 	BigInteger s = new BigInteger(1024, random); 
+	 	BigInteger S = g.modPow(s, p);
+
+	 	dhKey = S.modPow(s, p);
+
+	 	byte[] dhKeyBytes = dhKey.toByteArray();
+	 	byte[] shortBytes = new byte[16];
+
+	 	for(int i = 0; i < 16; i++){
+	 		shortBytes[i] = dhKeyBytes[i];
+	 	}
+
+	 	try{
+	 		AESKey = new SecretKeySpec(serverBytes, "AES");
+	 	}
+	 	catch(Exception ex){
+	 		ex.printStackTrace();
+	 	}
+
+	 	System.out.println("\n\nGroupServer-Side Key: " + AESKey.getEncoded().toString());
+
+	 	return S;
 	 }
 
 	 public boolean createUser(String username, String password, UserToken token)
