@@ -198,7 +198,7 @@ public class RunUI {
         }
 
         //Create AESEnncrypted who can hold state
-        AESEncrypter aes = new AESEncrypter(AESKey);
+        AESEncrypter aesUsername = new AESEncrypter(AESKey);
         AESEncrypter aesPassword = new AESEncrypter(AESKey);
 
         //Prompts the user for a login, then connects to the group server using the specified
@@ -226,8 +226,8 @@ public class RunUI {
             passwordEntry = scan.next();
             passwordAttempts++;
 
-            encryptedUser = aes.encrypt(username);
-            encryptedPass = aes.encrypt(passwordEntry);
+            encryptedUser = aesUsername.encrypt(username);
+            encryptedPass = aesPassword.encrypt(passwordEntry);
         }
         //Denies entry if more than 5 attempts were made
         if(passwordAttempts > 5){
