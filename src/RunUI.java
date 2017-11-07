@@ -212,8 +212,8 @@ public class RunUI {
         int passwordAttempts = 1;
 
         //Encrypt username and password to send to server
-        String encryptedUser = aes.encrypt(username);
-        String encryptedPass = aes.encrypt(passwordEntry);
+        EncryptedMessage encryptedUser = aes.encrypt(username);
+        EncryptedMessage encryptedPass = aes.encrypt(passwordEntry);
 
         //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly

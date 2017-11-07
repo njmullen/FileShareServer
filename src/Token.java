@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -65,9 +66,11 @@ public class Token implements UserToken, java.io.Serializable {
 
   public Token parseTokenString(byte[] tokenString){
     StringBuilder sb = new StringBuilder();
-    String _issuer, _userName;
-    List<String> _groups = new List();
-    char c = null;
+    //TODO: These need inititialized
+    String _issuer = " ", _userName = " ";
+    List<String> _groups = new ArrayList<String>();
+    //TODO: fix this its temporary
+    char c = ' ';
     int numPipe = 0;
     for(int i = 0; i < tokenString.length; i++){
       c = (char) tokenString[i];
@@ -89,7 +92,8 @@ public class Token implements UserToken, java.io.Serializable {
 
         sb = new StringBuilder();
       }
-      else if(c == null){
+      //TODO : Cant compare to null type
+      else if(c == ' '){
         break;
       }
       else{
