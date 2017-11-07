@@ -266,12 +266,12 @@ public class RunUI {
             if (!signaturePass){
                 System.out.println("Token not able to be verified");
                 System.exit(0);
-            } 
+            }
         } catch (Exception signEx){
             signEx.printStackTrace();
             System.exit(0);
         }
-        
+
         fullToken = new Token(plainToken);
     } else {
     	System.out.println("Unable to connect to GroupServer");
