@@ -80,23 +80,14 @@ public class GroupClient extends Client implements GroupClientInterface {
 	}
 
 	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
-		aes = new AESDecrypter(AESKey);
-		String username = aes.decrypt(usernameEnc);
-		String password = aes.decrypt(passwordEnc);
 		Envelope message = null;
 		Envelope response = null;
-		try {
+
+		//Send encrypted passwords
+		try{
 			message = new Envelope("CHECKPWD");
-			byte[] passwordHash = null;
-			try {
-				DigestSHA3 md = new DigestSHA3(256);
-				md.update(password.getBytes("UTF-8"));
-				passwordHash = md.digest();
-			} catch(Exception ex) {
-				ex.printStackTrace();
-			}
-			message.addObject(username);
-			message.addObject(passwordHash);
+			message.addObject(usernameEnc);
+			message.addObject(passwordEnc);
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
@@ -108,6 +99,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		} catch(Exception ex){
 			ex.printStackTrace();
 		}
+		
 		return false;
 	}
 
@@ -187,32 +179,26 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 //Diffie-Hellman exchange to create shared AES session key
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
-	 	Random random = new Random();
-	 	BigInteger s = new BigInteger(1024, random);
-	 	BigInteger S = g.modPow(s, p);
-	 	dhKey = C.modPow(s, p);
-
-	 	byte[] dhKeyBytes = dhKey.toByteArray();
-	 	byte[] shortBytes = new byte[16];
-
-	 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
-
-	 	for(int i = 0; i < 16; i++){
-	 		shortBytes[i] = dhKeyBytes[i];
-	 	}
-
 	 	try{
-	 		AESKey = new SecretKeySpec(shortBytes, "AES");
-	 	}
-	 	catch(Exception ex){
+	 		Envelope message = null, response = null;
+	 		message = new Envelope("DH");
+		 	message.addObject(p);
+		 	message.addObject(g);
+		 	message.addObject(C);
+
+		 	output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				return S;
+			}
+			return null;
+	 	} catch (Exception ex){
 	 		ex.printStackTrace();
 	 	}
-
-	 	return S;
-	 }
-
-	 public void setNonce(String nonce) {
-		 startNonce = nonce;
+	 	
+	 	return null;
 	 }
 
 	 public boolean createUser(String username, String password, EncryptedToken token)

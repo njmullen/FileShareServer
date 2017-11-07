@@ -5,16 +5,57 @@ import java.lang.Thread;
 import java.net.Socket;
 import java.io.*;
 import java.util.*;
+import java.security.*;
+import javax.crypto.*;
+import java.math.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class GroupThread extends Thread
 {
 	private final Socket socket;
 	private GroupServer my_gs;
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	private PublicKey publicKey;
+	private PrivateKey privateKey;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
 		socket = _socket;
 		my_gs = _gs;
+
+		//Read in public and private keys
+		try{
+			File privateKeyFile = new File("groupPrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			File publicKeyFile = new File("groupPublicKey");
+			FileInputStream keyIn = new FileInputStream(publicKeyFile);
+			byte[] publicKeyBytes = new byte[keyIn.available()];
+			keyIn.read(publicKeyBytes);
+			keyIn.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+		
 	}
 
 	public void run()
@@ -271,16 +312,74 @@ public class GroupThread extends Thread
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
-					String username = (String)message.getObjContents().get(0);
-					byte[] passwordHash = (byte[])message.getObjContents().get(1);
+					EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
 
-					if(checkPassword(username, passwordHash)){
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String usernameDecr = aesDecrypter.decrypt(username);
+					String passwordDecr = aesDecrypter.decrypt(password);
+
+					//Hash password
+					byte[] passwordHash = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+		  				md.update(passwordDecr.getBytes("UTF-8"));
+		  				passwordHash = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					if(checkPassword(usernameDecr, passwordHash)){
 						response = new Envelope("OK");
 					} else {
 						response = new Envelope("FAIL");
 					}
 
 					output.writeObject(response);
+
+				//Client wants to do a DH exchange
+				} else if (message.getMessage().equals("DH")){
+					if(message.getObjContents().size() < 3){
+						response = new Envelope("FAIL");
+					}
+
+					BigInteger p = (BigInteger)message.getObjContents().get(0);
+					BigInteger g = (BigInteger)message.getObjContents().get(1);
+					BigInteger C = (BigInteger)message.getObjContents().get(2);
+
+					Random random = new Random();
+				 	BigInteger s = new BigInteger(1024, random);
+				 	BigInteger S = g.modPow(s, p);
+				 	dhKey = C.modPow(s, p);
+
+				 	byte[] dhKeyBytes = dhKey.toByteArray();
+				 	byte[] shortBytes = new byte[16];
+
+				 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
+
+				 	for(int i = 0; i < 16; i++){
+				 		shortBytes[i] = dhKeyBytes[i];
+				 	}
+
+				 	try{
+				 		AESKey = new SecretKeySpec(shortBytes, "AES");
+				 	}
+				 	catch(Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response = new Envelope("OK");
+				 	response.addObject(S);
+
+				 	output.writeObject(response);
+
+				//Client wants to authenticate the server with a random challenge
+				} else if (message.getMessage().equals("RANDOM")){
+
+				//Client wants public key of server
+				} else if (message.getMessage().equals("GETPUBLICKEY")){
+
 				}
 				else
 				{
