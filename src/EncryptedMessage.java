@@ -1,12 +1,12 @@
 import javax.crypto.spec.GCMParameterSpec;
-
+import javax.crypto.spec.IvParameterSpec;
 
 public class EncryptedMessage {
   String encryptedMessage;
-  GCMParameterSpec passedIV;
+  byte[] nonce;
 
-  public EncryptedMessage(String encryptedMessage, GCMParameterSpec passedIV) {
+  public EncryptedMessage(String encryptedMessage, byte[] nonce) {
     this.encryptedMessage = encryptedMessage;
-    this.passedIV = passedIV;
+    this.nonce = nonce;
   }
 }

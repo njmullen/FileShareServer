@@ -198,9 +198,7 @@ public class RunUI {
         }
 
         //Create AESEnncrypted who can hold state
-        String nonce = "00000001";
-        AESEncrypter aes = new AESEncrypter(AESKey, nonce);
-        gc.setNonce(nonce);
+        AESEncrypter aes = new AESEncrypter(AESKey);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server

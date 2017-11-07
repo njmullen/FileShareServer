@@ -1,7 +1,7 @@
 import java.security.*;
 import javax.crypto.*;
 
-import javax.crypto.spec.IVParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
@@ -34,9 +34,8 @@ public class AESDecrypter {
   public String decrypt(EncryptedMessage sent) {
        byte[] decryptedText = null;
        byte[] encryptedBytes = sent.encryptedMessage.getBytes();
-
     try {
-        IVParameterSpec GCMSpec = sent.passedIV;
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.nonce);
         AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
         decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
       } catch (Exception ex){
@@ -45,8 +44,8 @@ public class AESDecrypter {
       return new String(decryptedText);
     }
 
-  public IVParameterSpec updateIV() {
+  public IvParameterSpec updateIV() {
     byte[] nonce = new byte[8];
-    return new IVParameterSpec(128, nonce);
+    return new IvParameterSpec(nonce);
   }
 }

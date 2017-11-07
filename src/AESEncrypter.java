@@ -1,7 +1,7 @@
 import java.security.*;
 import javax.crypto.*;
 
-import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
@@ -18,14 +18,12 @@ import java.util.Arrays;
 public class AESEncrypter {
   Key AESkey = null;
   Cipher AESEncryptCipher = null;
-  BigInteger currNonce = null;
   SecureRandom rand;
 
-  public AESEncrypter(Key key, String nonce) {
+  public AESEncrypter(Key key) {
     Security.addProvider(new BouncyCastleProvider());
     rand = new SecureRandom();
     this.AESkey = key;
-    currNonce = new BigInteger(nonce, 2);
     try {
       AESEncryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
     } catch (Exception e) {
@@ -39,19 +37,20 @@ public class AESEncrypter {
     EncryptedMessage send = null;
 
   try {
-      GCMParameterSpec GCMSpec = updateIV();
+      byte[] nonce = updateIV();
+      IvParameterSpec GCMSpec = new IvParameterSpec(nonce);
       AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESkey, GCMSpec);
       encryptedBytes = AESEncryptCipher.doFinal(bytesToEncrypt);
-      send = new EncryptedMessage(new String(encryptedBytes), GCMSpec);
+      send = new EncryptedMessage(new String(encryptedBytes), nonce);
     } catch (Exception ex){
       ex.printStackTrace();
     }
     return send;
   }
 
-  public GCMParameterSpec updateIV() {
+  public byte[] updateIV() {
     byte[] nonce = new byte[8];
     rand.nextBytes(nonce);
-    return new GCMParameterSpec(128, nonce);
+    return nonce;
   }
 }
