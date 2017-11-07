@@ -212,30 +212,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 private String aesDecrypt(String encryptedString) {
 	 			byte[] decryptedText = null;
+				byte[] encryptedBytes = encryptedString.getBytes();
+
+				System.out.println("Encrypted Bytes: "+encryptedBytes);
 	  		try {
 	  			Cipher AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
 	  			AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESKey, AESIVSpec);
-	  			decryptedText = AESDecryptCipher.doFinal(encryptedString.getBytes());
+	  			decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
 	  		} catch (Exception ex){
 	  			ex.printStackTrace();
 	  		}
+				System.out.println("Encrypted: "+encryptedString +" DECRYPTED ");
+				System.out.println(decryptedText);
 				return new String(decryptedText);
 	 }
-	//  public void testAES(byte[] encrypted) {
-	 //
-	//  		//Simulate encryption with the server key and decryption with the client key
-	// 		byte[] decryptedClientText = null;
-	 //
-	//  		try {
-	 //
-	//  			Cipher AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-	//  			AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESKey, AESIVSpec);
-	//  			decryptedClientText = AESDecryptCipher.doFinal(encrypted);
-	// 			System.out.println("Decrypted Server Side"+new String(decryptedClientText));
-	//  		} catch (Exception ex){
-	//  			ex.printStackTrace();
-	//  		}
-	//  }
 
 	 public boolean createUser(String username, String password, UserToken token)
 	 {
