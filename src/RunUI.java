@@ -180,11 +180,10 @@ public class RunUI {
         BigInteger S = gc.performDiffie(p, g, C);
         BigInteger dhKey = S.modPow(c, p);
 
+        //AES
         //Generate AES key with 1st 16 bits of DH key
         byte[] dhKeyBytes = dhKey.toByteArray();
         byte[] shortBytes = new byte[16];
-
-         System.out.println("User-Side DH Key: " dhKeyBytes.toString());
 
         for(int i = 0; i < 16; i++){
             shortBytes[i] = dhKeyBytes[i];
@@ -198,8 +197,24 @@ public class RunUI {
             ex.printStackTrace();
         }
 
-        System.out.println("\n\nPerformed Diffie-Hellman with GroupServer - Generated session key");
-        System.out.println("User-Side Key: " + AESKey.getEncoded().toString());
+        //TEST TODO
+        String mainString = "The quick brown fox jumps over the lazy dog";
+        byte[] stringToEncrypt = mainString.getBytes();
+
+        System.out.println("Client Side Bytes: "+stringToEncrypt);
+
+        byte[] encryptedServerText = null;
+
+        IvParameterSpec AESIVSpec = new IvParameterSpec(new byte[16]);
+        //Simulate encryption with the server key and decryption with the client key
+        try {
+          Cipher AESEncryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+          AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESKey, AESIVSpec);
+          encryptedServerText = AESEncryptCipher.doFinal(stringToEncrypt);
+          gc.testAES(encryptedServerText, AESIVSpec);
+        } catch (Exception ex){
+          ex.printStackTrace();
+        }
 
 
         //Prompts the user for a login, then connects to the group server using the specified

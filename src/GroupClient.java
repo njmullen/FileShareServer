@@ -179,19 +179,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 }
 
+	 //Diffie-Hellman exchange to create shared AES session key
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
 	 	Random random = new Random();
 	 	BigInteger s = new BigInteger(1024, random);
 	 	BigInteger S = g.modPow(s, p);
-
-	 	dhKey = S.modPow(s, p);
+	 	dhKey = C.modPow(s, p);
 
 	 	byte[] dhKeyBytes = dhKey.toByteArray();
 	 	byte[] shortBytes = new byte[16];
 
-
-	 	System.out.println("GS-Side DH Key: " dhKeyBytes.toString());
-
+	 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
 
 	 	for(int i = 0; i < 16; i++){
 	 		shortBytes[i] = dhKeyBytes[i];
@@ -204,9 +202,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 		ex.printStackTrace();
 	 	}
 
-	 	System.out.println("\n\nGroupServer-Side Key: " + AESKey.getEncoded().toString());
-
 	 	return S;
+	 }
+
+	 public void testAES(byte[] encrypted, IvParameterSpec AESIVSpec) {
+
+	 		//Simulate encryption with the server key and decryption with the client key
+			byte[] decryptedClientText = null;
+
+	 		try {
+
+	 			Cipher AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+	 			AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESKey, AESIVSpec);
+	 			decryptedClientText = AESDecryptCipher.doFinal(encrypted);
+				System.out.println("Decrypted Server Side"+new String(decryptedClientText));
+	 		} catch (Exception ex){
+	 			ex.printStackTrace();
+	 		}
 	 }
 
 	 public boolean createUser(String username, String password, UserToken token)
