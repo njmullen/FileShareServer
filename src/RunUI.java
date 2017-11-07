@@ -197,9 +197,10 @@ public class RunUI {
             ex.printStackTrace();
         }
 
-        //Give Server IV for AES Synchronized
-        IvParameterSpec AESIVSpec = new IvParameterSpec(new byte[16]);
-        gc.exchangeIV(AESIVSpec);
+        //Create AESEnncrypted who can hold state
+        String nonce = "00000001";
+        AESEncrypter aes = new AESEncrypter(AESKey, nonce);
+        gc.setNonce(nonce);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server
@@ -211,8 +212,8 @@ public class RunUI {
         int passwordAttempts = 1;
 
         //Encrypt username and password to send to server
-        String encryptedUser = aesEncrypt(username, AESKey, AESIVSpec);
-        String encryptedPass = aesEncrypt(passwordEntry, AESKey, AESIVSpec);
+        String encryptedUser = aes.encrypt(username);
+        String encryptedPass = aes.encrypt(passwordEntry);
 
         //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly
@@ -226,8 +227,8 @@ public class RunUI {
             passwordEntry = scan.next();
             passwordAttempts++;
 
-            encryptedUser = aesEncrypt(username, AESKey, AESIVSpec);
-            encryptedPass = aesEncrypt(passwordEntry, AESKey, AESIVSpec);
+            encryptedUser = aes.encrypt(username);
+            encryptedPass = aes.encrypt(passwordEntry);
         }
         //Denies entry if more than 5 attempts were made
         if(passwordAttempts > 5){
@@ -238,12 +239,13 @@ public class RunUI {
         //If password was entered succesfully, grab the users token.
         //If the username doesn't exist, throw invalid username, though this would have
         //said invalid password and kicked user out before this is reached
-    	token = gc.getToken(username);
-    	if (token == null){
-    		System.out.println("Invalid username");
-    		gc.disconnect();
-            System.exit(0);
-    	}
+      	token = gc.getToken(username);
+      	if (token == null){
+      		System.out.println("Invalid username");
+      		gc.disconnect();
+              System.exit(0);
+      	}
+      System.exit(0);
     } else {
     	System.out.println("Unable to connect to GroupServer");
     }
@@ -599,18 +601,4 @@ public class RunUI {
         return choice;
   }
 
-  private static String aesEncrypt(String toEncrypt, Key AESKey, IvParameterSpec AESIVSpec) {
-    byte[] bytesToEncrypt = toEncrypt.getBytes();
-    byte[] encryptedBytes= null;
-
-    //Simulate encryption with the server key and decryption with the client key
-    try {
-      Cipher AESEncryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-      AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESKey, AESIVSpec);
-      encryptedBytes = AESEncryptCipher.doFinal(bytesToEncrypt);
-    } catch (Exception ex){
-      ex.printStackTrace();
-    }
-    return new String(encryptedBytes);
-  }
 }

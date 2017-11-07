@@ -8,7 +8,7 @@ import java.util.*;
 
 import java.security.*;
 import javax.crypto.*;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
@@ -22,7 +22,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
-	private IvParameterSpec AESIVSpec = null;
+	private AESDecrypter aes = null;
+	private String startNonce = null;
 
 	public byte[] sendRandomChallenge(byte[] challenge){
 		//Decrypt the random challenge with private key and return it
@@ -73,8 +74,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 	}
 
 	public boolean checkPassword(String usernameEnc, String passwordEnc){
-		String username = aesDecrypt(usernameEnc);
-		String password = aesDecrypt(passwordEnc);
+		aes = new AESDecrypter(AESKey, startNonce);
+		String username = aes.decrypt(usernameEnc);
+		String password = aes.decrypt(passwordEnc);
 		Envelope message = null;
 		Envelope response = null;
 		try {
@@ -208,34 +210,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	return S;
 	 }
 
-	 public void exchangeIV(IvParameterSpec AESIVSpec) {this.AESIVSpec = AESIVSpec;}
-
-	 private String aesDecrypt(String encryptedString) {
-	 			byte[] decryptedText = null;
-	  		try {
-	  			Cipher AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-	  			AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESKey, AESIVSpec);
-	  			decryptedText = AESDecryptCipher.doFinal(encryptedString.getBytes());
-	  		} catch (Exception ex){
-	  			ex.printStackTrace();
-	  		}
-				return new String(decryptedText);
+	 public void setNonce(String nonce) {
+		 startNonce = nonce;
 	 }
-	//  public void testAES(byte[] encrypted) {
-	 //
-	//  		//Simulate encryption with the server key and decryption with the client key
-	// 		byte[] decryptedClientText = null;
-	 //
-	//  		try {
-	 //
-	//  			Cipher AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-	//  			AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESKey, AESIVSpec);
-	//  			decryptedClientText = AESDecryptCipher.doFinal(encrypted);
-	// 			System.out.println("Decrypted Server Side"+new String(decryptedClientText));
-	//  		} catch (Exception ex){
-	//  			ex.printStackTrace();
-	//  		}
-	//  }
 
 	 public boolean createUser(String username, String password, UserToken token)
 	 {
