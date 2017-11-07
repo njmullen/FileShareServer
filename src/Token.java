@@ -63,7 +63,7 @@ public class Token implements UserToken, java.io.Serializable {
       return tokenString.getBytes();
   }
 
-  public Token parseTokenString(byte[] tokenString){
+  public Token parseTokenFromString(byte[] tokenString){
     StringBuilder sb = new StringBuilder();
     String _issuer, _userName;
     List<String> _groups = new List();
