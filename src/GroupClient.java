@@ -184,13 +184,13 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	BigInteger s = new BigInteger(1024, random); 
 	 	BigInteger S = g.modPow(s, p);
 
-	 	dhKey = S.modPow(s, p);
+	 	dhKey = C.modPow(s, p);
 
 	 	byte[] dhKeyBytes = dhKey.toByteArray();
 	 	byte[] shortBytes = new byte[16];
 
 
-	 	System.out.println("GS-Side DH Key: " dhKeyBytes.toString());
+	 	System.out.println("GS-Side DH Key: " + dhKeyBytes.toString());
 
 
 	 	for(int i = 0; i < 16; i++){

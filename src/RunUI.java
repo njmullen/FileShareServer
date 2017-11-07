@@ -184,7 +184,7 @@ public class RunUI {
         byte[] dhKeyBytes = dhKey.toByteArray();
         byte[] shortBytes = new byte[16];
 
-         System.out.println("User-Side DH Key: " dhKeyBytes.toString());
+         System.out.println("User-Side DH Key: " + dhKeyBytes.toString());
 
         for(int i = 0; i < 16; i++){
             shortBytes[i] = dhKeyBytes[i];
