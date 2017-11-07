@@ -4,6 +4,12 @@ import java.util.List;
 import java.io.*;
 import java.security.*;
 import javax.crypto.*;
+
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
 import java.security.*;
@@ -149,12 +155,51 @@ public class RunUI {
             System.out.println("Unable to authenticate server");
             gc.disconnect();
             System.exit(0);
-        } 
+        }
 
         //Do D-H Exchange
+        DHParameterSpec dhSpec = null;
+        try {
+            AlgorithmParameterGenerator dhGenerator = AlgorithmParameterGenerator.getInstance("DH");
+            dhGenerator.init(1024, new SecureRandom());
+            AlgorithmParameters dhParameters = dhGenerator.generateParameters();
+            dhSpec = (DHParameterSpec)dhParameters.getParameterSpec(DHParameterSpec.class);
+        } catch (Exception ex){
+            ex.printStackTrace();
+        }
 
-        //Create shared key K
+        //s = the secret number that the server generates
+        //p = the prime number
+        //g = prime number generator
+        //S = the calculated half key of the server (g^s mod p)
+        BigInteger c = new BigInteger(1024, random);
+        BigInteger p = dhSpec.getP();
+        BigInteger g = dhSpec.getG();
+        BigInteger C = g.modPow(c, p);
 
+        BigInteger S = gc.performDiffie(p, g, C);
+        BigInteger dhKey = S.modPow(c, p);
+
+        //AES
+        //Generate AES key with 1st 16 bits of DH key
+        byte[] dhKeyBytes = dhKey.toByteArray();
+        byte[] shortBytes = new byte[16];
+
+        for(int i = 0; i < 16; i++){
+            shortBytes[i] = dhKeyBytes[i];
+        }
+
+        Key AESKey = null;
+        try{
+            AESKey = new SecretKeySpec(shortBytes, "AES");
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+        }
+
+        //Create AESEnncrypted who can hold state
+        AESEncrypter aesUsername = new AESEncrypter(AESKey);
+        AESEncrypter aesPassword = new AESEncrypter(AESKey);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server
@@ -165,16 +210,24 @@ public class RunUI {
         String passwordEntry = scan.next();
         int passwordAttempts = 1;
 
+        //Encrypt username and password to send to server
+        EncryptedMessage encryptedUser = aes.encrypt(username);
+        EncryptedMessage encryptedPass = aesPassword.encrypt(passwordEntry);
+
+        //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly
         //5 times
         //TODO: Disable account after 5 incorrect passwords?
-        while (!gc.checkPassword(username, passwordEntry) && passwordAttempts <= 5){
+        while (!gc.checkPassword(encryptedUser, encryptedPass) && passwordAttempts <= 5){
             System.out.println("Invalid username or password. Please try again");
             System.out.println("Enter your username: ");
             username = scan.next();
             System.out.println("Enter your password: ");
             passwordEntry = scan.next();
             passwordAttempts++;
+
+            encryptedUser = aesUsername.encrypt(username);
+            encryptedPass = aesPassword.encrypt(passwordEntry);
         }
         //Denies entry if more than 5 attempts were made
         if(passwordAttempts > 5){
@@ -183,14 +236,15 @@ public class RunUI {
         }
 
         //If password was entered succesfully, grab the users token.
-        //If the username doesn't exist, throw invalid username, though this would have 
+        //If the username doesn't exist, throw invalid username, though this would have
         //said invalid password and kicked user out before this is reached
-    	token = gc.getToken(username);
-    	if (token == null){
-    		System.out.println("Invalid username");
-    		gc.disconnect();
-            System.exit(0);
-    	}
+      	token = gc.getToken(username);
+      	if (token == null){
+      		System.out.println("Invalid username");
+      		gc.disconnect();
+              System.exit(0);
+      	}
+      System.exit(0);
     } else {
     	System.out.println("Unable to connect to GroupServer");
     }
@@ -427,7 +481,7 @@ public class RunUI {
                     System.out.println("Unable to authenticate server");
                     fc.disconnect();
                     System.exit(0);
-                } 
+                }
 
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
@@ -545,4 +599,5 @@ public class RunUI {
         System.out.println("");
         return choice;
   }
+
 }
