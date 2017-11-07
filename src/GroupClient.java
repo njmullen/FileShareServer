@@ -76,35 +76,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	public boolean checkPassword(String usernameEnc, String passwordEnc){
 		System.out.println("shouldn't be in here");
 		return false;
-		// aes = new AESDecrypter(AESKey); //took out start nonce
-		// String username = aes.decrypt(usernameEnc);
-		// String password = aes.decrypt(passwordEnc);
-		// Envelope message = null;
-		// Envelope response = null;
-		// try {
-		// 	message = new Envelope("CHECKPWD");
-		// 	byte[] passwordHash = null;
-		// 	try {
-		// 		DigestSHA3 md = new DigestSHA3(256);
-  	// 			md.update(password.getBytes("UTF-8"));
-  	// 			passwordHash = md.digest();
-		// 	} catch(Exception ex) {
-		// 		ex.printStackTrace();
-		// 	}
-		// 	message.addObject(username);
-		// 	message.addObject(passwordHash);
-		// 	output.writeObject(message);
-		//
-		// 	response = (Envelope)input.readObject();
-		// 	if(response.getMessage().equals("OK")){
-		// 		return true;
-		// 	} else {
-		// 		return false;
-		// 	}
-		// } catch(Exception ex){
-		// 	ex.printStackTrace();
-		// }
-		// return false;
+
 	}
 
 	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
@@ -118,8 +90,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 			byte[] passwordHash = null;
 			try {
 				DigestSHA3 md = new DigestSHA3(256);
-					md.update(password.getBytes("UTF-8"));
-					passwordHash = md.digest();
+				md.update(password.getBytes("UTF-8"));
+				passwordHash = md.digest();
 			} catch(Exception ex) {
 				ex.printStackTrace();
 			}
