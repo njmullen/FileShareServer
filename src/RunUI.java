@@ -168,8 +168,6 @@ public class RunUI {
             ex.printStackTrace();
         }
 
-        Random random = new Random();
-
         //s = the secret number that the server generates
         //p = the prime number 
         //g = prime number generator 
@@ -179,7 +177,7 @@ public class RunUI {
         BigInteger g = dhSpec.getG();
         BigInteger C = g.modPow(c, p);
 
-        BigInteger S = gc.performDiffie(p, g, C, 0);
+        BigInteger S = gc.performDiffie(p, g, C);
         BigInteger dhKey = S.modPow(c, p);
 
         //Generate AES key with 1st 16 bits of DH key
@@ -192,7 +190,7 @@ public class RunUI {
 
         Key AESKey = null;
         try{
-            AESKey = SecretKeySpec(shortBytes, "AES");
+            AESKey = new SecretKeySpec(shortBytes, "AES");
         }
         catch(Exception ex){
             ex.printStackTrace();
