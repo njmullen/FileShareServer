@@ -66,10 +66,8 @@ public class Token implements UserToken, java.io.Serializable {
 
   public Token parseTokenFromString(byte[] tokenString){
     StringBuilder sb = new StringBuilder();
-    //TODO: These need inititialized
     String _issuer = " ", _userName = " ";
     List<String> _groups = new ArrayList<String>();
-    //TODO: fix this its temporary
     char c = ' ';
     int numPipe = 0;
     for(int i = 0; i < tokenString.length; i++){
@@ -91,10 +89,6 @@ public class Token implements UserToken, java.io.Serializable {
         }
 
         sb = new StringBuilder();
-      }
-      //TODO : Cant compare to null type
-      else if(c == ' '){
-        break;
       }
       else{
         sb.append(c);

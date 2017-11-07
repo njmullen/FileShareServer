@@ -1,3 +1,13 @@
 *.class
 .DS_Store
+
+#GS
 UserList.Bin
+src/groupPrivateKey
+src/groupPublicKey
+src/knownServers.txt
+
+#FS
+src/FileList.bin
+src/filePrivateKey
+src/filePublicKey
