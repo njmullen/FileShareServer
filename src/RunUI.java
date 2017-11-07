@@ -197,7 +197,7 @@ public class RunUI {
         }
 
         System.out.println("Performed Diffie-Hellman with GroupServer - Generated session key");
-        System.out.println("User-Side Key: " + AESKey.toEncoded().toString());
+        System.out.println("User-Side Key: " + AESKey.getEncoded().toString());
 
 
         //Prompts the user for a login, then connects to the group server using the specified
