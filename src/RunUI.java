@@ -4,6 +4,12 @@ import java.util.List;
 import java.io.*;
 import java.security.*;
 import javax.crypto.*;
+
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
 import java.security.*;

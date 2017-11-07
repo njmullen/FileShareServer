@@ -194,7 +194,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	}
 
 	 	try{
-	 		AESKey = new SecretKeySpec(serverBytes, "AES");
+	 		AESKey = new SecretKeySpec(shortBytes, "AES");
 	 	}
 	 	catch(Exception ex){
 	 		ex.printStackTrace();
