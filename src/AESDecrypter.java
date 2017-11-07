@@ -34,7 +34,7 @@ public class AESDecrypter {
        byte[] decryptedText = null;
        byte[] encryptedBytes = sent.encryptedMessage;
     try {
-        IvParameterSpec GCMSpec = sent.ivSpec;
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.ivSpec);
         AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
         decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
       } catch (Exception ex){
