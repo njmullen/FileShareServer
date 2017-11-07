@@ -5,8 +5,13 @@ import java.util.List;
 import java.io.ObjectInputStream;
 import java.io.*;
 import java.util.*;
+
 import java.security.*;
 import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
 import java.security.*;
@@ -14,6 +19,11 @@ import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
 import org.bouncycastle.util.encoders.Hex;
 
 public class GroupClient extends Client implements GroupClientInterface {
+
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	private AESDecrypter aes = null;
+	private String startNonce = null;
 
 	public byte[] sendRandomChallenge(byte[] challenge){
 		//Decrypt the random challenge with private key and return it
@@ -38,7 +48,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
-		
+
 		return decryptedChallenge;
 	}
 
@@ -63,16 +73,53 @@ public class GroupClient extends Client implements GroupClientInterface {
 		return publicKey;
 	}
 
-	public boolean checkPassword(String username, String password){
+	public boolean checkPassword(String usernameEnc, String passwordEnc){
+		System.out.println("shouldn't be in here");
+		return false;
+		// aes = new AESDecrypter(AESKey); //took out start nonce
+		// String username = aes.decrypt(usernameEnc);
+		// String password = aes.decrypt(passwordEnc);
+		// Envelope message = null;
+		// Envelope response = null;
+		// try {
+		// 	message = new Envelope("CHECKPWD");
+		// 	byte[] passwordHash = null;
+		// 	try {
+		// 		DigestSHA3 md = new DigestSHA3(256);
+  	// 			md.update(password.getBytes("UTF-8"));
+  	// 			passwordHash = md.digest();
+		// 	} catch(Exception ex) {
+		// 		ex.printStackTrace();
+		// 	}
+		// 	message.addObject(username);
+		// 	message.addObject(passwordHash);
+		// 	output.writeObject(message);
+		//
+		// 	response = (Envelope)input.readObject();
+		// 	if(response.getMessage().equals("OK")){
+		// 		return true;
+		// 	} else {
+		// 		return false;
+		// 	}
+		// } catch(Exception ex){
+		// 	ex.printStackTrace();
+		// }
+		// return false;
+	}
+
+	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
+		aes = new AESDecrypter(AESKey);
+		String username = aes.decrypt(usernameEnc);
+		String password = aes.decrypt(passwordEnc);
 		Envelope message = null;
 		Envelope response = null;
 		try {
 			message = new Envelope("CHECKPWD");
 			byte[] passwordHash = null;
 			try {
-				DigestSHA3 md = new DigestSHA3(256); 
-  				md.update(password.getBytes("UTF-8"));
-  				passwordHash = md.digest();
+				DigestSHA3 md = new DigestSHA3(256);
+					md.update(password.getBytes("UTF-8"));
+					passwordHash = md.digest();
 			} catch(Exception ex) {
 				ex.printStackTrace();
 			}
@@ -115,7 +162,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				temp = response.getObjContents();
 
 				if(temp.size() == 1)
-				{	
+				{
 					//Set security provider and read private key from file
 					Security.addProvider(new BouncyCastleProvider());
 					token = (UserToken)temp.get(0);
@@ -156,7 +203,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 						ex.printStackTrace();
 					}
 
-					
 					return token;
 				}
 			}
@@ -172,6 +218,36 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 }
 
+	 //Diffie-Hellman exchange to create shared AES session key
+	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
+	 	Random random = new Random();
+	 	BigInteger s = new BigInteger(1024, random);
+	 	BigInteger S = g.modPow(s, p);
+	 	dhKey = C.modPow(s, p);
+
+	 	byte[] dhKeyBytes = dhKey.toByteArray();
+	 	byte[] shortBytes = new byte[16];
+
+	 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
+
+	 	for(int i = 0; i < 16; i++){
+	 		shortBytes[i] = dhKeyBytes[i];
+	 	}
+
+	 	try{
+	 		AESKey = new SecretKeySpec(shortBytes, "AES");
+	 	}
+	 	catch(Exception ex){
+	 		ex.printStackTrace();
+	 	}
+
+	 	return S;
+	 }
+
+	 public void setNonce(String nonce) {
+		 startNonce = nonce;
+	 }
+
 	 public boolean createUser(String username, String password, UserToken token)
 	 {
 		 try
@@ -179,7 +255,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				byte[] passwordHash = null;
 				try {
-					DigestSHA3 md = new DigestSHA3(256); 
+					DigestSHA3 md = new DigestSHA3(256);
 	  				md.update(password.getBytes("UTF-8"));
 	  				passwordHash = md.digest();
 				} catch(Exception ex) {

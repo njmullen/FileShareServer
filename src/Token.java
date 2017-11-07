@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -52,12 +53,54 @@ public class Token implements UserToken, java.io.Serializable {
   public byte[] getTokenString(){
       StringBuilder sb = new StringBuilder();
       sb.append(userName);
+      sb.append("|");
       sb.append(issuer);
+      sb.append("|");
       for (int i = 0; i < groups.size(); i++){
         sb.append(groups.get(i));
+        sb.append("|");
       }
       String tokenString = sb.toString();
       return tokenString.getBytes();
   }
 
+  public Token parseTokenFromString(byte[] tokenString){
+    StringBuilder sb = new StringBuilder();
+    //TODO: These need inititialized
+    String _issuer = " ", _userName = " ";
+    List<String> _groups = new ArrayList<String>();
+    //TODO: fix this its temporary
+    char c = ' ';
+    int numPipe = 0;
+    for(int i = 0; i < tokenString.length; i++){
+      c = (char) tokenString[i];
+
+      if(c == '|'){
+        numPipe++;
+
+        if(numPipe == 1){
+          _userName = sb.toString();
+        }
+
+        else if(numPipe == 2){
+          _issuer = sb.toString();
+        }
+
+        else{
+          _groups.add(sb.toString());
+        }
+
+        sb = new StringBuilder();
+      }
+      //TODO : Cant compare to null type
+      else if(c == ' '){
+        break;
+      }
+      else{
+        sb.append(c);
+      }
+    }
+
+    return new Token(_issuer, _userName, _groups);
+  }
 }
