@@ -211,7 +211,7 @@ public class RunUI {
         int passwordAttempts = 1;
 
         //Encrypt username and password to send to server
-        EncryptedMessage encryptedUser = aes.encrypt(username);
+        EncryptedMessage encryptedUser = aesUsername.encrypt(username);
         EncryptedMessage encryptedPass = aesPassword.encrypt(passwordEntry);
 
         //Send encrypted user and password
@@ -244,7 +244,6 @@ public class RunUI {
       		gc.disconnect();
               System.exit(0);
       	}
-      System.exit(0);
     } else {
     	System.out.println("Unable to connect to GroupServer");
     }
@@ -480,6 +479,14 @@ public class RunUI {
                 if (!Arrays.equals(challengeRecieved, challengeBytes)){
                     System.out.println("Unable to authenticate server");
                     fc.disconnect();
+                    System.exit(0);
+                }
+
+                //After the FileServer is connected to and authenticated, connect the FileServer
+                //to the GroupServer to get its public key to verify tokens.
+                boolean fileGroupKeyExchange = fc.getGroupServerKey(groupServerChoice, groupPort);
+                if (!fileGroupKeyExchange){
+                    System.out.println("FS/GS Key exchange failed");
                     System.exit(0);
                 }
 

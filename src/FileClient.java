@@ -4,9 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.*;
 import java.security.*;
 import javax.crypto.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
 import java.security.*;
@@ -14,6 +18,41 @@ import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
 import org.bouncycastle.util.encoders.Hex;
 
 public class FileClient extends Client implements FileClientInterface {
+
+	PublicKey groupServerKey;
+
+	public boolean getGroupServerKey(String server, int port){
+		GroupClient gc = new GroupClient();
+		gc.connect(server, port);
+		if (gc.isConnected()){
+			//Get the public key
+			groupServerKey = gc.getPublicKey();
+			//Generate a random challenge and send to server to encrypt
+            Random random = new Random();
+            BigInteger challenge = new BigInteger(1024, random);
+            byte[] challengeBytes = challenge.toByteArray();
+            byte[] encryptedChallenge = null;
+            try {
+                Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+                RSACipher.init(Cipher.ENCRYPT_MODE, groupServerKey);
+                //Encrypt the string using the Cipher
+                encryptedChallenge = RSACipher.doFinal(challengeBytes);
+            } catch (Exception rsaExf){
+                rsaExf.printStackTrace();
+            }
+            byte[] challengeRecieved = gc.sendRandomChallenge(encryptedChallenge);
+            if (!Arrays.equals(challengeRecieved, challengeBytes)){
+                System.out.println("Unable to authenticate server");
+                gc.disconnect();
+                System.exit(0);
+            }
+            return true;
+		} else {
+			System.out.println("GroupServer/FileServer error");
+			System.exit(0);
+			return false;
+		}
+	}
 
 	public byte[] sendRandomChallenge(byte[] challenge){
 		//Decrypt the random challenge with private key and return it
