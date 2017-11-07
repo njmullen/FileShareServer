@@ -132,7 +132,7 @@ public class RunUI {
                     ex.printStackTrace();
                 }
             } else {
-                System.out.println("Not trusted. exiting");
+                System.out.println("Not trusted. Exiting");
                 System.exit(0);
             }
         }
@@ -217,7 +217,6 @@ public class RunUI {
         //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly
         //5 times
-        //TODO: Disable account after 5 incorrect passwords?
         while (!gc.checkPassword(encryptedUser, encryptedPass) && passwordAttempts <= 5){
             System.out.println("Invalid username or password. Please try again");
             System.out.println("Enter your username: ");
@@ -279,9 +278,9 @@ public class RunUI {
                     case 1:
                         System.out.println("Create a User");
                         System.out.println("Enter username to be created: ");
-                        String newUsername = scan.next();
+                        String newUsername = checkForPipe(scan);
                         System.out.println("Set a password for that user: ");
-                        String password = scan.next();
+                        String password = checkForPipe(scan);
                         //Checks that current logged in user is an admin, if not, forbids the operation
                         if(token.getGroups().contains("ADMIN")){
                             if(gc.createUser(newUsername, password, token)){
@@ -313,7 +312,7 @@ public class RunUI {
                     case 3:
                         System.out.println("Create a Group");
                         System.out.println("Enter the group name: ");
-                        String groupName = scan.next();
+                        String groupName = checkForPipe(scan);
                         if(gc.createGroup(groupName, token)){
                             System.out.println(groupName + " succesfully created!");
                         } else {
@@ -606,5 +605,12 @@ public class RunUI {
         System.out.println("");
         return choice;
   }
-
+  public static String checkForPipe(Scanner scan) {
+    String input = scan.next();
+    while(input.contains("|")) {
+      System.out.println("Invalid: Cannot contain \'|\'\nTry again.");
+      input = scan.next();
+    }
+    return input;
+  }
 }
