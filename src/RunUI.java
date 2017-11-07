@@ -197,25 +197,9 @@ public class RunUI {
             ex.printStackTrace();
         }
 
-        //TEST TODO
-        String mainString = "The quick brown fox jumps over the lazy dog";
-        byte[] stringToEncrypt = mainString.getBytes();
-
-        System.out.println("Client Side Bytes: "+stringToEncrypt);
-
-        byte[] encryptedServerText = null;
-
+        //Give Server IV for AES Synchronized
         IvParameterSpec AESIVSpec = new IvParameterSpec(new byte[16]);
-        //Simulate encryption with the server key and decryption with the client key
-        try {
-          Cipher AESEncryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-          AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESKey, AESIVSpec);
-          encryptedServerText = AESEncryptCipher.doFinal(stringToEncrypt);
-          gc.testAES(encryptedServerText, AESIVSpec);
-        } catch (Exception ex){
-          ex.printStackTrace();
-        }
-
+        gc.exchangeIV(AESIVSpec);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server
@@ -226,16 +210,24 @@ public class RunUI {
         String passwordEntry = scan.next();
         int passwordAttempts = 1;
 
+        //Encrypt username and password to send to server
+        String encryptedUser = aesEncrypt(username, AESKey, AESIVSpec);
+        String encryptedPass = aesEncrypt(passwordEntry, AESKey, AESIVSpec);
+
+        //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly
         //5 times
         //TODO: Disable account after 5 incorrect passwords?
-        while (!gc.checkPassword(username, passwordEntry) && passwordAttempts <= 5){
+        while (!gc.checkPassword(encryptedUser, encryptedPass) && passwordAttempts <= 5){
             System.out.println("Invalid username or password. Please try again");
             System.out.println("Enter your username: ");
             username = scan.next();
             System.out.println("Enter your password: ");
             passwordEntry = scan.next();
             passwordAttempts++;
+
+            encryptedUser = aesEncrypt(username, AESKey, AESIVSpec);
+            encryptedPass = aesEncrypt(passwordEntry, AESKey, AESIVSpec);
         }
         //Denies entry if more than 5 attempts were made
         if(passwordAttempts > 5){
@@ -605,5 +597,20 @@ public class RunUI {
         int choice = scan.nextInt();
         System.out.println("");
         return choice;
+  }
+
+  private static String aesEncrypt(String toEncrypt, Key AESKey, IvParameterSpec AESIVSpec) {
+    byte[] bytesToEncrypt = toEncrypt.getBytes();
+    byte[] encryptedBytes= null;
+
+    //Simulate encryption with the server key and decryption with the client key
+    try {
+      Cipher AESEncryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
+      AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESKey, AESIVSpec);
+      encryptedBytes = AESEncryptCipher.doFinal(bytesToEncrypt);
+    } catch (Exception ex){
+      ex.printStackTrace();
+    }
+    return new String(encryptedBytes);
   }
 }
