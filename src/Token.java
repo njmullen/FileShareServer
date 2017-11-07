@@ -52,12 +52,51 @@ public class Token implements UserToken, java.io.Serializable {
   public byte[] getTokenString(){
       StringBuilder sb = new StringBuilder();
       sb.append(userName);
+      sb.append("|");
       sb.append(issuer);
+      sb.append("|");
       for (int i = 0; i < groups.size(); i++){
         sb.append(groups.get(i));
+        sb.append("|");
       }
       String tokenString = sb.toString();
       return tokenString.getBytes();
   }
 
+  public Token parseTokenString(byte[] tokenString){
+    StringBuilder sb = new StringBuilder();
+    String _issuer, _userName;
+    List<String> _groups = new List();
+    char c = null;
+    int numPipe = 0;
+    for(int i = 0; i < tokenString.length; i++){
+      c = (char) tokenString[i];
+
+      if(c == '|'){
+        numPipe++;
+
+        if(numPipe == 1){
+          _userName = sb.toString();
+        }
+
+        else if(numPipe == 2){
+          _issuer = sb.toString();
+        }
+
+        else{
+          _groups.add(sb.toString());
+        }
+
+        sb = new StringBuilder();
+      }
+      else if(c == null){
+        break;
+      }
+      else{
+        sb.append(c);
+      }
+    }
+
+    return new Token(_issuer, _userName, _groups);
+  }
 }
