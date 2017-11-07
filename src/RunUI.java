@@ -184,6 +184,8 @@ public class RunUI {
         byte[] dhKeyBytes = dhKey.toByteArray();
         byte[] shortBytes = new byte[16];
 
+         System.out.println("User-Side DH Key: " dhKeyBytes.toString());
+
         for(int i = 0; i < 16; i++){
             shortBytes[i] = dhKeyBytes[i];
         }
@@ -196,7 +198,7 @@ public class RunUI {
             ex.printStackTrace();
         }
 
-        System.out.println("Performed Diffie-Hellman with GroupServer - Generated session key");
+        System.out.println("\n\nPerformed Diffie-Hellman with GroupServer - Generated session key");
         System.out.println("User-Side Key: " + AESKey.getEncoded().toString());
 
 

@@ -189,6 +189,10 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	byte[] dhKeyBytes = dhKey.toByteArray();
 	 	byte[] shortBytes = new byte[16];
 
+
+	 	System.out.println("GS-Side DH Key: " dhKeyBytes.toString());
+
+
 	 	for(int i = 0; i < 16; i++){
 	 		shortBytes[i] = dhKeyBytes[i];
 	 	}
