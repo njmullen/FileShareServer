@@ -8,7 +8,8 @@ import java.util.*;
 
 import java.security.*;
 import javax.crypto.*;
-import javax.crypto.spec.IVParameterSpec;
+
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
@@ -22,7 +23,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
-	
+
 	public byte[] sendRandomChallenge(byte[] challenge){
 		//Decrypt the random challenge with private key and return it
 		Security.addProvider(new BouncyCastleProvider());
@@ -46,7 +47,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
-		
+
 		return decryptedChallenge;
 	}
 
@@ -78,7 +79,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("CHECKPWD");
 			byte[] passwordHash = null;
 			try {
-				DigestSHA3 md = new DigestSHA3(256); 
+				DigestSHA3 md = new DigestSHA3(256);
   				md.update(password.getBytes("UTF-8"));
   				passwordHash = md.digest();
 			} catch(Exception ex) {
@@ -123,7 +124,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				temp = response.getObjContents();
 
 				if(temp.size() == 1)
-				{	
+				{
 					//Set security provider and read private key from file
 					Security.addProvider(new BouncyCastleProvider());
 					token = (UserToken)temp.get(0);
@@ -181,7 +182,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
 	 	Random random = new Random();
-	 	BigInteger s = new BigInteger(1024, random); 
+	 	BigInteger s = new BigInteger(1024, random);
 	 	BigInteger S = g.modPow(s, p);
 
 	 	dhKey = S.modPow(s, p);
@@ -212,7 +213,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				byte[] passwordHash = null;
 				try {
-					DigestSHA3 md = new DigestSHA3(256); 
+					DigestSHA3 md = new DigestSHA3(256);
 	  				md.update(password.getBytes("UTF-8"));
 	  				passwordHash = md.digest();
 				} catch(Exception ex) {
