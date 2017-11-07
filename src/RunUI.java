@@ -25,13 +25,8 @@ public class RunUI {
     Scanner scan = new Scanner(System.in);
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
-    EncryptedToken token = null;
+    UserToken token = null;
     String username = null;
-    PublicKey groupKey = null;
-    Token fullToken = null;
-    EncryptedToken fileToken = null;
-    byte[] plainToken = null;
-    byte[] sigToken = null;
 
     Security.addProvider(new BouncyCastleProvider());
 
@@ -69,7 +64,7 @@ public class RunUI {
 
     if (gc.isConnected()){
         //Asks the server for its public key
-        groupKey = gc.getPublicKey();
+        PublicKey groupKey = gc.getPublicKey();
         boolean isMatch = false;
         //Check against list of known public keys
         try {
@@ -248,30 +243,6 @@ public class RunUI {
       		gc.disconnect();
               System.exit(0);
       	}
-
-        //Verify the Token signature using the GroupServer's public key
-        EncryptedMessage plainTokenEnc = token.encToken;
-        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-        plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-        sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-        try {
-            Signature signature = Signature.getInstance("RSA");
-            signature.initVerify(groupKey);
-            signature.update(plainToken);
-            boolean signaturePass = signature.verify(sigToken);
-            if (!signaturePass){
-                System.out.println("Token not able to be verified");
-                System.exit(0);
-            } 
-        } catch (Exception signEx){
-            signEx.printStackTrace();
-            System.exit(0);
-        }
-        
-        fullToken = new Token(plainToken);
     } else {
     	System.out.println("Unable to connect to GroupServer");
     }
@@ -311,7 +282,7 @@ public class RunUI {
                         System.out.println("Set a password for that user: ");
                         String password = checkForPipe(scan);
                         //Checks that current logged in user is an admin, if not, forbids the operation
-                        if(fullToken.getGroups().contains("ADMIN")){
+                        if(token.getGroups().contains("ADMIN")){
                             if(gc.createUser(newUsername, password, token)){
                                 System.out.println(newUsername + " added succesfully!");
                             } else {
@@ -327,7 +298,7 @@ public class RunUI {
                         System.out.println("Enter username to be deleted: ");
                         String deletedUsername = scan.next();
                         //Checks that current logged in user is an admin, if not, forbids the operation
-                        if(fullToken.getGroups().contains("ADMIN")){
+                        if(token.getGroups().contains("ADMIN")){
                             if(gc.deleteUser(deletedUsername, token)){
                                 System.out.println(deletedUsername + " deleted succesfully!");
                             } else {
@@ -510,46 +481,6 @@ public class RunUI {
                     System.exit(0);
                 }
 
-                //Do D-H Exchange
-                DHParameterSpec dhSpec = null;
-                try {
-                    AlgorithmParameterGenerator dhGenerator = AlgorithmParameterGenerator.getInstance("DH");
-                    dhGenerator.init(1024, new SecureRandom());
-                    AlgorithmParameters dhParameters = dhGenerator.generateParameters();
-                    dhSpec = (DHParameterSpec)dhParameters.getParameterSpec(DHParameterSpec.class);
-                } catch (Exception ex){
-                    ex.printStackTrace();
-                }
-
-                //s = the secret number that the server generates
-                //p = the prime number
-                //g = prime number generator
-                //S = the calculated half key of the server (g^s mod p)
-                BigInteger c = new BigInteger(1024, random);
-                BigInteger p = dhSpec.getP();
-                BigInteger g = dhSpec.getG();
-                BigInteger C = g.modPow(c, p);
-
-                BigInteger S = fc.performDiffie(p, g, C);
-                BigInteger dhKey = S.modPow(c, p);
-
-                //AES
-                //Generate AES key with 1st 16 bits of DH key
-                byte[] dhKeyBytes = dhKey.toByteArray();
-                byte[] shortBytes = new byte[16];
-
-                for(int i = 0; i < 16; i++){
-                    shortBytes[i] = dhKeyBytes[i];
-                }
-
-                Key fileAESKey = null;
-                try{
-                    fileAESKey = new SecretKeySpec(shortBytes, "AES");
-                }
-                catch(Exception ex){
-                    ex.printStackTrace();
-                }
-
                 //After the FileServer is connected to and authenticated, connect the FileServer
                 //to the GroupServer to get its public key to verify tokens.
                 boolean fileGroupKeyExchange = fc.getGroupServerKey(groupServerChoice, groupPort);
@@ -557,15 +488,6 @@ public class RunUI {
                     System.out.println("FS/GS Key exchange failed");
                     System.exit(0);
                 }
-
-                //Re-encrypt the Token with the shared key for the fileserver
-                AESEncrypter aesPlainToken = new AESEncrypter(fileAESKey);
-                AESEncrypter aesSignedToken = new AESEncrypter(fileAESKey);
-
-                EncryptedMessage encryptedPlainToken = aesPlainToken.encrypt(plainToken);
-                EncryptedMessage encryptedSignedToken = aesSignedToken.encrypt(sigToken);
-
-                fileToken = new EncryptedToken(encryptedPlainToken, encryptedSignedToken);
 
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
@@ -582,7 +504,7 @@ public class RunUI {
                             destFile = scan.next();
                             System.out.println("Enter the name of the group to which this file should be added:  ");
                             group = scan.next();
-                            if(fc.upload(sourceFile, destFile, group, fileToken)){
+                            if(fc.upload(sourceFile, destFile, group, token)){
                                 System.out.println(sourceFile + " successfully uploaded as " + destFile + " in group " + group);
                             }
                             else{
@@ -596,7 +518,7 @@ public class RunUI {
                             sourceFile = scan.next();
                             System.out.println("Enter the name of the local destination file: ");
                             destFile = scan.next();
-                            if(fc.download(sourceFile, destFile, fileToken)){
+                            if(fc.download(sourceFile, destFile, token)){
                                 System.out.println(sourceFile + " succesfully downloaded as " + destFile);
                             }
                             else{
@@ -608,7 +530,7 @@ public class RunUI {
                             System.out.println("Delete a file");
                             System.out.println("Enter the name of the file to be deleted");
                             fileName = scan.next();
-                            if(fc.delete(fileName, fileToken)){
+                            if(fc.delete(fileName, token)){
                                 System.out.println(fileName + " succesfully deleted");
                             }
                             else{
@@ -618,7 +540,7 @@ public class RunUI {
                         //List all files available to that user
                         case 4:
                             System.out.println("List all files");
-                            List<String> files = fc.listFiles(fileToken);
+                            List<String> files = fc.listFiles(token);
                             if(files != null){
                                 int count = files.size();
                                 System.out.println(count + " files available");
@@ -637,6 +559,7 @@ public class RunUI {
                             System.out.println("Invalid input: Please select an option 0-4");
                             break;
                     }
+                    token = gc.getToken(username);
                 }
             }
             else{

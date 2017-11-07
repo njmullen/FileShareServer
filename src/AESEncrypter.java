@@ -31,21 +31,6 @@ public class AESEncrypter {
     }
   }
 
-  public EncryptedMessage encrypt(byte[] bytesToEncrypt) {
-    byte[] encryptedBytes = null;
-    EncryptedMessage send = null;
-
-  try {
-      IvParameterSpec ivSpec = updateIV();
-      AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESkey, ivSpec);
-      encryptedBytes = AESEncryptCipher.doFinal(bytesToEncrypt);
-      send = new EncryptedMessage(encryptedBytes, ivSpec);
-    } catch (Exception ex){
-      ex.printStackTrace();
-    }
-    return send;
-  }
-
   public EncryptedMessage encrypt(String toEncrypt) {
     byte[] bytesToEncrypt = toEncrypt.getBytes();
     byte[] encryptedBytes= null;
