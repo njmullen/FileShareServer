@@ -22,13 +22,25 @@ public class AESDecrypter {
   public AESDecrypter(Key key) {
     Security.addProvider(new BouncyCastleProvider());
     this.AESkey = key;
-    //currNonce = new BigInteger(nonce, 2);
     try {
       AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
+
+  public byte[] decryptByte(EncryptedMessage sent) {
+       byte[] decryptedText = null;
+       byte[] encryptedBytes = sent.encryptedMessage;
+    try {
+        IvParameterSpec GCMSpec = sent.ivSpec;
+        AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
+        decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
+      } catch (Exception ex){
+        ex.printStackTrace();
+      }
+      return decryptedText;
+    }
 
   public String decrypt(EncryptedMessage sent) {
        byte[] decryptedText = null;
