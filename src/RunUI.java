@@ -199,6 +199,7 @@ public class RunUI {
 
         //Create AESEnncrypted who can hold state
         AESEncrypter aes = new AESEncrypter(AESKey);
+        AESEncrypter aesPassword = new AESEncrypter(AESKey);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server
@@ -211,7 +212,7 @@ public class RunUI {
 
         //Encrypt username and password to send to server
         EncryptedMessage encryptedUser = aes.encrypt(username);
-        EncryptedMessage encryptedPass = aes.encrypt(passwordEntry);
+        EncryptedMessage encryptedPass = aesPassword.encrypt(passwordEntry);
 
         //Send encrypted user and password
         //Checks to see if the password is invalid; denies entry if it is entered incorrectly

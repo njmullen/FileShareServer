@@ -37,20 +37,18 @@ public class AESEncrypter {
     EncryptedMessage send = null;
 
   try {
-      byte[] nonce = updateIV();
-      IvParameterSpec GCMSpec = new IvParameterSpec(nonce);
-      AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESkey, GCMSpec);
+      IvParameterSpec ivSpec = updateIV();
+      AESEncryptCipher.init(Cipher.ENCRYPT_MODE, AESkey, ivSpec);
       encryptedBytes = AESEncryptCipher.doFinal(bytesToEncrypt);
-      send = new EncryptedMessage(new String(encryptedBytes), nonce);
+      send = new EncryptedMessage(encryptedBytes, ivSpec);
     } catch (Exception ex){
       ex.printStackTrace();
     }
     return send;
   }
 
-  public byte[] updateIV() {
-    byte[] nonce = new byte[8];
-    rand.nextBytes(nonce);
-    return nonce;
+  public IvParameterSpec updateIV() {
+    IvParameterSpec AESIVSpec = new IvParameterSpec(new byte[16]);
+    return AESIVSpec;
   }
 }

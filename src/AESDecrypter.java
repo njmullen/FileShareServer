@@ -18,7 +18,6 @@ import java.util.Arrays;
 public class AESDecrypter {
   Key AESkey = null;
   Cipher AESDecryptCipher = null;
-  BigInteger currNonce = null;
 
   public AESDecrypter(Key key) {
     Security.addProvider(new BouncyCastleProvider());
@@ -33,9 +32,9 @@ public class AESDecrypter {
 
   public String decrypt(EncryptedMessage sent) {
        byte[] decryptedText = null;
-       byte[] encryptedBytes = sent.encryptedMessage.getBytes();
+       byte[] encryptedBytes = sent.encryptedMessage;
     try {
-        IvParameterSpec GCMSpec = new IvParameterSpec(sent.nonce);
+        IvParameterSpec GCMSpec = sent.ivSpec;
         AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
         decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
       } catch (Exception ex){
@@ -43,9 +42,4 @@ public class AESDecrypter {
       }
       return new String(decryptedText);
     }
-
-  public IvParameterSpec updateIV() {
-    byte[] nonce = new byte[8];
-    return new IvParameterSpec(nonce);
-  }
 }
