@@ -155,7 +155,7 @@ public class RunUI {
             System.out.println("Unable to authenticate server");
             gc.disconnect();
             System.exit(0);
-        } 
+        }
 
         //Do D-H Exchange
         DHParameterSpec dhSpec = null;
@@ -169,8 +169,8 @@ public class RunUI {
         }
 
         //s = the secret number that the server generates
-        //p = the prime number 
-        //g = prime number generator 
+        //p = the prime number
+        //g = prime number generator
         //S = the calculated half key of the server (g^s mod p)
         BigInteger c = new BigInteger(1024, random);
         BigInteger p = dhSpec.getP();
@@ -197,7 +197,7 @@ public class RunUI {
         }
 
         System.out.println("Performed Diffie-Hellman with GroupServer - Generated session key");
-        System.out.println("User-Side Key: " + AESKey.toEncoded().toString());
+        System.out.println("User-Side Key: " + AESKey.getEncoded().toString());
 
 
         //Prompts the user for a login, then connects to the group server using the specified
@@ -227,7 +227,7 @@ public class RunUI {
         }
 
         //If password was entered succesfully, grab the users token.
-        //If the username doesn't exist, throw invalid username, though this would have 
+        //If the username doesn't exist, throw invalid username, though this would have
         //said invalid password and kicked user out before this is reached
     	token = gc.getToken(username);
     	if (token == null){
@@ -471,7 +471,7 @@ public class RunUI {
                     System.out.println("Unable to authenticate server");
                     fc.disconnect();
                     System.exit(0);
-                } 
+                }
 
                 System.out.println("Connected to FileServer");
                 int fileMenuChoice = -1;
