@@ -14,6 +14,42 @@ public class Token implements UserToken, java.io.Serializable {
     this.groups = groups;
   }
 
+  public Token(byte[] tokenString){
+    StringBuilder sb = new StringBuilder();
+    String _issuer = " ", _userName = " ";
+    List<String> _groups = new ArrayList<String>();
+    char c = ' ';
+    int numPipe = 0;
+    for(int i = 0; i < tokenString.length; i++){
+      c = (char) tokenString[i];
+
+      if(c == '|'){
+        numPipe++;
+
+        if(numPipe == 1){
+          _userName = sb.toString();
+        }
+
+        else if(numPipe == 2){
+          _issuer = sb.toString();
+        }
+
+        else{
+          _groups.add(sb.toString());
+        }
+
+        sb = new StringBuilder();
+      }
+      else{
+        sb.append(c);
+      }
+    }
+
+    issuer = _issuer;
+    userName = _userName;
+    groups = _groups;
+  }
+
   /**
    * This method should return a string describing the issuer of
    * this token.  This string identifies the group server that
@@ -64,37 +100,4 @@ public class Token implements UserToken, java.io.Serializable {
       return tokenString.getBytes();
   }
 
-  public Token parseTokenFromString(byte[] tokenString){
-    StringBuilder sb = new StringBuilder();
-    String _issuer = " ", _userName = " ";
-    List<String> _groups = new ArrayList<String>();
-    char c = ' ';
-    int numPipe = 0;
-    for(int i = 0; i < tokenString.length; i++){
-      c = (char) tokenString[i];
-
-      if(c == '|'){
-        numPipe++;
-
-        if(numPipe == 1){
-          _userName = sb.toString();
-        }
-
-        else if(numPipe == 2){
-          _issuer = sb.toString();
-        }
-
-        else{
-          _groups.add(sb.toString());
-        }
-
-        sb = new StringBuilder();
-      }
-      else{
-        sb.append(c);
-      }
-    }
-
-    return new Token(_issuer, _userName, _groups);
-  }
 }

@@ -30,6 +30,19 @@ public class AESDecrypter {
     }
   }
 
+   public byte[] decryptBytes(EncryptedMessage sent) {
+       byte[] decryptedText = null;
+       byte[] encryptedBytes = sent.encryptedMessage;
+    try {
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.ivSpec);
+        AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
+        decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
+      } catch (Exception ex){
+        ex.printStackTrace();
+      }
+      return decryptedText;
+    }
+
   public String decrypt(EncryptedMessage sent) {
        byte[] decryptedText = null;
        byte[] encryptedBytes = sent.encryptedMessage;

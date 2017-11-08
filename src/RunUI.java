@@ -18,6 +18,7 @@ import org.bouncycastle.util.encoders.Hex;
 import java.math.*;
 
 public class RunUI {
+
   public static void main(String args[]) {
     System.out.println("Welcome to the File Sharing Program!");
 
@@ -27,6 +28,7 @@ public class RunUI {
     FileClient fc = new FileClient();
     UserToken token = null;
     String username = null;
+    
 
     Security.addProvider(new BouncyCastleProvider());
 
@@ -150,8 +152,8 @@ public class RunUI {
         } catch (Exception rsaEx){
             rsaEx.printStackTrace();
         }
-        byte[] challengeRecieved = gc.sendRandomChallenge(encryptedChallenge);
-        if (!Arrays.equals(challengeRecieved, challengeBytes)){
+        boolean challengeRecieved = gc.sendRandomChallenge(encryptedChallenge, challengeBytes);
+        if (!challengeRecieved){
             System.out.println("Unable to authenticate server");
             gc.disconnect();
             System.exit(0);
@@ -190,12 +192,15 @@ public class RunUI {
         }
 
         Key AESKey = null;
+
         try{
             AESKey = new SecretKeySpec(shortBytes, "AES");
         }
         catch(Exception ex){
             ex.printStackTrace();
         }
+
+        gc.setAESKey(AESKey);
 
         //Create AESEnncrypted who can hold state
         AESEncrypter aesUsername = new AESEncrypter(AESKey);

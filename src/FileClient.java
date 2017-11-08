@@ -40,8 +40,8 @@ public class FileClient extends Client implements FileClientInterface {
             } catch (Exception rsaExf){
                 rsaExf.printStackTrace();
             }
-            byte[] challengeRecieved = gc.sendRandomChallenge(encryptedChallenge);
-            if (!Arrays.equals(challengeRecieved, challengeBytes)){
+            boolean challengeRecieved = gc.sendRandomChallenge(encryptedChallenge, challengeBytes);
+            if (!challengeRecieved){
                 System.out.println("Unable to authenticate server");
                 gc.disconnect();
                 System.exit(0);

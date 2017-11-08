@@ -24,53 +24,56 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private Key AESKey = null;
 	private AESDecrypter aes = null;
 	private String startNonce = null;
+	private PublicKey groupKey = null;
 
-	public byte[] sendRandomChallenge(byte[] challenge){
-		//Decrypt the random challenge with private key and return it
-		Security.addProvider(new BouncyCastleProvider());
-		PrivateKey privateKey = null;
+	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
+		Envelope message = null;
+		Envelope response = null;
 		byte[] decryptedChallenge = null;
-		try {
-			File privateKeyFile = new File("groupPrivateKey");
-			FileInputStream input = new FileInputStream(privateKeyFile);
-			byte[] privateKeyBytes = new byte[input.available()];
-			input.read(privateKeyBytes);
-			input.close();
 
-			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			privateKey = keyFactory.generatePrivate(privateKeySpec);
+		try{
+			message = new Envelope("RANDOM");
+			message.addObject(challenge);
+			output.writeObject(message);
 
-			Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
-            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
-            //Decrypt the string using the Cipher
-            decryptedChallenge = RSACipher.doFinal(challenge);
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				decryptedChallenge = (byte[])response.getObjContents().get(0);
+				if(Arrays.equals(decryptedChallenge, challengeOriginal)){
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
 
-		return decryptedChallenge;
+		return false;
 	}
 
 	public PublicKey getPublicKey(){
-		byte[] publicKeyBytes = null;
-		PublicKey publicKey = null;
+		Envelope message = null;
+		Envelope response = null;
+		PublicKey publicKey;
 
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			File publicKeyFile = new File("groupPublicKey");
-			FileInputStream input = new FileInputStream(publicKeyFile);
-			publicKeyBytes = new byte[input.available()];
-			input.read(publicKeyBytes);
-			input.close();
+		try{
+			message = new Envelope("GETPUBLICKEY");
+			output.writeObject(message);
 
-			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-			publicKey = keyFactory.generatePublic(publicKeySpec);
-		} catch (Exception ex){
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("KEY")){
+				publicKey = (PublicKey)response.getObjContents().get(0);
+				groupKey = publicKey;
+				return publicKey;
+			}
+		} catch(Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKey;
+		return null;
 	}
 
 	public boolean checkPassword(String usernameEnc, String passwordEnc){
@@ -103,85 +106,52 @@ public class GroupClient extends Client implements GroupClientInterface {
 		return false;
 	}
 
-	 public UserToken getToken(String username)
-	 {
-		try
-		{
-			UserToken token = null;
-			Envelope message = null, response = null;
+	public void setAESKey(Key AESKeys){
+		this.AESKey = AESKeys;
+	}
 
-			//Tell the server to return a token.
-			message = new Envelope("GET");
-			message.addObject(username); //Add user name string
-			output.writeObject(message);
+	 public UserToken getToken(String username){
+	 	try{
+	 		Envelope message = null;
+	 		Envelope response = null;
+	 		Security.addProvider(new BouncyCastleProvider());
 
-			//Get the response from the server
-			response = (Envelope)input.readObject();
+	 		message = new Envelope("GET");
+	 		//Encrypt the username and send it
+	 		AESEncrypter aesUsername = new AESEncrypter(AESKey);
+	 		EncryptedMessage encryptedUser = aesUsername.encrypt(username);
+	 		message.addObject(encryptedUser);
 
-			//Successful response
-			if(response.getMessage().equals("OK"))
-			{
-				//If there is a token in the Envelope, return it
-				ArrayList<Object> temp = null;
-				temp = response.getObjContents();
+	 		response = (Envelope)input.readObject();
+	 		if(response.getMessage().equals("OK")){
+	 			EncryptedMessage tokenEnc = (EncryptedMessage)response.getObjContents().get(0);
+	 			EncryptedMessage signEnc = (EncryptedMessage)response.getObjContents().get(1);
+	 			
+	 			AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
+	 			AESDecrypter signDecrypter = new AESDecrypter(AESKey);
 
-				if(temp.size() == 1)
-				{
-					//Set security provider and read private key from file
-					Security.addProvider(new BouncyCastleProvider());
-					token = (UserToken)temp.get(0);
+	 			byte[] tokenBytes = tokenDecrypter.decryptBytes(tokenEnc);
+	 			byte[] tokenSig = signDecrypter.decryptBytes(signEnc);
 
-					try {
-						File privateKeyFile = new File("groupPrivateKey");
-						FileInputStream input = new FileInputStream(privateKeyFile);
-						byte[] privateKeyBytes = new byte[input.available()];
-						input.read(privateKeyBytes);
-						input.close();
+	 			Signature signature = Signature.getInstance("RSA");
+		 		signature.initVerify(groupKey);
+	            signature.update(tokenBytes);
+	            boolean signaturePass = signature.verify(tokenSig);
+	            if (!signaturePass){
+	                System.out.println("Token not able to be verified");
+	                System.exit(0);
+	            }
 
-						PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-						KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-						PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
+	            Token token = new Token(tokenBytes);
+	            return token;
+	 		}
 
-						byte[] tokenString = token.getTokenString();
-
-						Signature signature = Signature.getInstance("RSA");
-						signature.initSign(privateKey);
-	            		signature.update(tokenString);
-	            		byte[] signatureBytes = signature.sign();
-
-	            		//Verifies token signature
-	            		File publicKeyFile = new File("groupPublicKey");
-	            		FileInputStream input2 = new FileInputStream(publicKeyFile);
-	            		byte[] publicKeyBytes = new byte[input2.available()];
-	            		input2.read(publicKeyBytes);
-	            		input2.close();
-
-	            		X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-						PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
-
-	            		signature.initVerify(publicKey);
-	            		signature.update(tokenString);
-	            		boolean signaturePass = signature.verify(signatureBytes);
-	            		System.out.println("Signature " + signaturePass);
-					} catch(Exception ex){
-						ex.printStackTrace();
-					}
-
-					return token;
-				}
-			}
-
-			return null;
-		}
-		catch(Exception e)
-		{
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
-			return null;
-		}
-
+	 	} catch(Exception ex){
+	 		ex.printStackTrace();
+	 	}
+	 	return null;
 	 }
-
+	 
 	 //Diffie-Hellman exchange to create shared AES session key
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
 	 	try{
@@ -199,6 +169,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				return S;
 			}
 			return null;
+
+
 	 	} catch (Exception ex){
 	 		ex.printStackTrace();
 	 	}

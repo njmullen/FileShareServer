@@ -31,6 +31,7 @@ public class GroupThread extends Thread
 	{
 		socket = _socket;
 		my_gs = _gs;
+		Security.addProvider(new BouncyCastleProvider());
 
 		//Read in public and private keys
 		try{
@@ -77,7 +78,9 @@ public class GroupThread extends Thread
 
 				if(message.getMessage().equals("GET"))//Client wants a token
 				{
-					String username = (String)message.getObjContents().get(0); //Get the username
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(0); //Get the username
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String username = aesDecrypter.decrypt(usernameEnc);
 					if(username == null)
 					{
 						response = new Envelope("FAIL");
@@ -101,7 +104,27 @@ public class GroupThread extends Thread
 
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
-						response.addObject(token);
+
+						//Encrypt the token
+						byte[] tokenString = token.getTokenString();
+						byte[] signedToken = null;
+						try{
+							Signature signature = Signature.getInstance("RSA");
+							signature.initSign(privateKey);
+							signature.update(tokenString);
+							signedToken = signature.sign();
+						} catch (Exception a){
+							a.printStackTrace();
+						}
+
+						AESEncrypter tokenEncrypter = new AESEncrypter(AESKey);
+						AESEncrypter signedTokenEncrypter = new AESEncrypter(AESKey);
+
+						EncryptedMessage tokenToPass = tokenEncrypter.encrypt(tokenString);
+						EncryptedMessage signToPass = signedTokenEncrypter.encrypt(signedToken);
+
+						response.addObject(tokenToPass);
+						response.addObject(signToPass);
 						output.writeObject(response);
 					}
 				}
@@ -376,10 +399,28 @@ public class GroupThread extends Thread
 
 				//Client wants to authenticate the server with a random challenge
 				} else if (message.getMessage().equals("RANDOM")){
+					byte[] challenge = (byte[])message.getObjContents().get(0);
+
+					//Decrypts the sent challenge and sends it back for comparison
+					byte[] decryptedChallenge = null;
+					try {
+						Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+			            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
+			            //Decrypt the string using the Cipher
+			            decryptedChallenge = RSACipher.doFinal(challenge);
+					} catch (Exception ex){
+						ex.printStackTrace();
+					}
+					response = new Envelope("OK");
+					response.addObject(decryptedChallenge);
+
+					output.writeObject(response);
 
 				//Client wants public key of server
 				} else if (message.getMessage().equals("GETPUBLICKEY")){
-
+					response = new Envelope("KEY");
+					response.addObject(publicKey);
+					output.writeObject(response);
 				}
 				else
 				{
