@@ -264,11 +264,18 @@ public class FileClient extends Client implements FileClientInterface {
 		try
 		 {
 			 
+		 	//Encrypt Everything
+		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
+		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
+
+		 	EncryptedMessage dest = destEnc.encrypt(destFile);
+		 	EncryptedMessage _group = groupEnc.encrypt(group);
+
 			 Envelope message = null, env = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("UPLOADF");
-			 message.addObject(destFile);
-			 message.addObject(group);
+			 message.addObject(dest);
+			 message.addObject(_group);
 			 message.addObject(token); //Add requester's token
 			 output.writeObject(message);
 			
@@ -305,7 +312,11 @@ public class FileClient extends Client implements FileClientInterface {
 						return false;
 					}
 					
-					message.addObject(buf);
+					AESEncrypter bufEnc = new AESEncrypter(AESKey);
+
+					EncryptedMessage bufSend = bufEnc.encrypt(buf);
+
+					message.addObject(bufSend);
 					message.addObject(new Integer(n));
 					
 					output.writeObject(message);

@@ -30,7 +30,6 @@ public class FileThread extends Thread
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
 	private PublicKey groupServerKey = null;
-	private AESDecrypter aesDec = null;
 
 	public FileThread(Socket _socket)
 	{
@@ -104,9 +103,28 @@ public class FileThread extends Thread
 							response = new Envelope("FAIL-BADTOKEN");
 						}
 						else {
-							String remotePath = (String)e.getObjContents().get(0);
-							String group = (String)e.getObjContents().get(1);
-							UserToken yourToken = (UserToken)e.getObjContents().get(2); //Extract token
+
+							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
+							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
+							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+
+							AESDecrypter patDec = new AESDecrypter(AESKey);
+							AESDecrypter groupDec = new AESDecrypter(AESKey);
+							AESDecrypter tokDec = new AESDecrypter(AESKey);
+							AESDecrypter sigDec = new AESDecrypter(AESKey);
+
+							String remotePath = patDec.decrypt(encPat);
+							String group = groupDec.decrypt(groupPat);
+
+							byte[] tokBytes = tokDec.decryptBytes(encTok.getToken());
+							byte[] sigBytes = sigDec.decryptBytes(encTok.getSignature());
+
+							if(!verifySig(tokBytes, sigBytes)){
+								System.out.printf("INVALID SIGNATURE!");
+								System.exit(0);
+							}
+
+							Token yourToken = new Token(tokBytes);
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -127,7 +145,12 @@ public class FileThread extends Thread
 
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
-									fos.write((byte[])e.getObjContents().get(0), 0, (Integer)e.getObjContents().get(1));
+
+									EncryptedMessage encBuf = (EncryptedMessage)e.getObjContents().get(0);
+
+									AESDecrypter decBuf = new AESDecrypter(AESKey);
+
+									fos.write(decBuf.decryptBytes(encBuf), 0, (Integer)e.getObjContents().get(1));
 									response = new Envelope("READY"); //Success
 									output.writeObject(response);
 									e = (Envelope)input.readObject();
@@ -151,7 +174,7 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					aesDec = new AESDecrypter(AESKey);
+					AESDecrypter aesDec = new AESDecrypter(AESKey);
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedMessage encTok = (EncryptedMessage)e.getObjContents().get(1);
@@ -385,7 +408,7 @@ public class FileThread extends Thread
 			if (signature.verify(sigBytes)){
 				return true;
 			} else {
-				System.exit(0);
+				return false;
 			}
 		}
 		catch(Exception ex){
