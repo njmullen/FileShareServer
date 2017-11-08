@@ -62,7 +62,24 @@ public class FileThread extends Thread
 				    		response = new Envelope("FAIL-BADTOKEN");
 				    	}
 				    	else{
-				    		UserToken yourToken = (UserToken)e.getObjContents().get(0);
+				    		EncryptedToken yourToken = (EncryptedToken)e.getObjContents().get(0);
+
+				    		EncryptedMessage tokenPart = yourToken.getToken();
+				    		EncryptedMessage sigPart = yourToken.getSignature();
+
+				    		AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+				    		AESDecrypter sigDecr = new AESDecrypter(AESKey);
+
+				    		byte[] tokenBytes = tokenDecr.decryptBytes(tokenPart);
+				    		byte[] sigBytes = sigDecr.decryptBytes(sigPart);
+
+				    		if(!verifySig(tokenBytes, sigBytes)){
+				    			System.out.println("Token fail");
+				    			System.exit(0);
+				    		}
+
+				    		Token newToken = new Token(tokenBytes);
+
 				    		ArrayList<ShareFile> fullList = new ArrayList<ShareFile>(FileServer.fileList.getFiles()); //Pull full list from file server
 				    		List<String> accessList = new ArrayList<String>(); //Stores names of files which user has access to
 				    		
@@ -71,15 +88,23 @@ public class FileThread extends Thread
 				    		while(!fullList.isEmpty()){
 				    			currFile = fullList.remove(0);
 				    			String fGroup = currFile.getGroup();
-				    			if(yourToken.getGroups().contains(fGroup)){
+				    			if(newToken.getGroups().contains(fGroup)){
 				    				accessList.add(currFile.getPath());
 				    			}
 				    		}
 
-				    		System.out.printf("Successfully generated file list\n");
+				    		int listSize = accessList.size();
 				    		response = new Envelope("OK"); //Success
-				    		response.addObject(accessList);
-				    		
+				    		response.addObject(listSize);
+
+							for(int i = 0; i < accessList.size(); i++){
+								AESEncrypter listEncr = new AESEncrypter(AESKey);
+								EncryptedMessage listEncrd = listEncr.encrypt(accessList.get(i));
+								response.addObject(listEncrd);
+							}
+
+				    		System.out.printf("Successfully generated file list\n");
+				    						    		
 				    		output.writeObject(response);
 				    	}
 				    }
@@ -174,17 +199,28 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					AESDecrypter aesDec = new AESDecrypter(AESKey);
-
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
-					EncryptedMessage encTok = (EncryptedMessage)e.getObjContents().get(1);
+					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
 
-					byte[] tokBytes = aesDec.decryptBytes(encTok);
-					String remotePath = aesDec.decrypt(encRemPat);
+					EncryptedMessage tokenP = encTok.getToken();
+					EncryptedMessage sigP = encTok.getSignature();
+
+					AESDecrypter tokenDec = new AESDecrypter(AESKey);
+					AESDecrypter sigDec = new AESDecrypter(AESKey);
+
+					byte[] tokBytes = tokenDec.decryptBytes(tokenP);
+					byte[] sigBytes = sigDec.decryptBytes(sigP);
+
+					if(!verifySig(tokBytes, sigBytes)){
+						System.out.println("Token fail");
+						System.exit(0);
+					}
+
+					AESDecrypter remDec = new AESDecrypter(AESKey);
+					String remotePath = remDec.decrypt(encRemPat);
 
 					Token t = new Token(tokBytes);
 					
-
 					
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
@@ -227,7 +263,7 @@ public class FileThread extends Thread
 
 								}
 
-
+								
 								e.addObject(buf);
 								e.addObject(new Integer(n));
 
