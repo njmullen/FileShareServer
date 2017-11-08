@@ -463,11 +463,11 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean verifySignature(EncryptedMessage token, EncryptedMessage signature){
+	private boolean verifySignature(EncryptedMessage tokenIn, EncryptedMessage signature){
 		AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
 		AESDecrypter sigDecrypter = new AESDecrypter(AESKey);
 
-		byte[] tokenBytes = tokenDecrypter.decryptBytes(token);
+		byte[] tokenBytes = tokenDecrypter.decryptBytes(tokenIn);
 		byte[] sigBytes = sigDecrypter.decryptBytes(signature);
 
 		try{

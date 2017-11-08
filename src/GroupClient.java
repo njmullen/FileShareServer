@@ -28,8 +28,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private byte[] tokenBytes = null;
 	private byte[] signBytes = null;
 	private EncryptedToken tokenObj = null;
-	private EncryptedMessage signIn = null;
-	private EncryptedMessage tokenIn = null;
 
 	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
 		Envelope message = null;
@@ -132,8 +130,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 		response = (Envelope)input.readObject();
 	 		if(response.getMessage().equals("OK")){
 	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
-	 			EncryptedMessage tokenIn = tokenObj.token;
-	 			EncryptedMessage signIn = tokenObj.signature;
+	 			EncryptedMessage tokenIn = tokenObj.getToken();
+				EncryptedMessage signIn = tokenObj.getSignature();
 
 	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
@@ -199,12 +197,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
 
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
 
 				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
 				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
 
 				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
 				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
 
 				message.addObject(usernameEncrypted); //Add user name string
 				message.addObject(passwordEncrypted);
@@ -236,12 +242,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 			{
 				Envelope message = null, response = null;
 
-
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
 
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
 				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
 				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
 
 				message.addObject(usernameEnc); //Add user name
 				message.addObject(tokenIn);  //Add requester's token
@@ -410,6 +423,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				e.printStackTrace(System.err);
 				return false;
 			}
+	 }
+
+	 public boolean verifyToken(EncryptedToken tokenIn){
+	 	EncryptedMessage token = tokenIn.token;
+	 	EncryptedMessage signature = tokenIn.signature;
+
+	 	AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+	 	byte[] tokenPlain = tokenDecr.decryptBytes(token);
+	 	if(!Arrays.equals(tokenPlain, tokenBytes)){
+	 		return false;
+	 	} else {
+	 		return true;
+	 	}
 	 }
 
 }
