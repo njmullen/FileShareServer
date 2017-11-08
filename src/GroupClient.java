@@ -27,6 +27,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private PublicKey groupKey = null;
 	private byte[] tokenBytes = null;
 	private byte[] signBytes = null;
+	private EncryptedMessage tokenIn = null;
+	private EncryptedMessage signIn = null;
 
 	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
 		Envelope message = null;
@@ -128,8 +130,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 		//Get back the token and signature
 	 		response = (Envelope)input.readObject();
 	 		if(response.getMessage().equals("OK")){
-	 			EncryptedMessage tokenIn = (EncryptedMessage)response.getObjContents().get(0);
-	 			EncryptedMessage signIn = (EncryptedMessage)response.getObjContents().get(1);
+	 			tokenIn = (EncryptedMessage)response.getObjContents().get(0);
+	 			signIn = (EncryptedMessage)response.getObjContents().get(1);
 
 	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
@@ -200,9 +202,13 @@ public class GroupClient extends Client implements GroupClientInterface {
 					System.out.println("Token error");
 					System.exit(0);
 				}
+
+
+
 				message.addObject(username); //Add user name string
 				message.addObject(passwordHash);
-				message.addObject(token); //Add the requester's token
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
