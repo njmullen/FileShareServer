@@ -191,20 +191,19 @@ public class RunUI {
             shortBytes[i] = dhKeyBytes[i];
         }
 
-        Key AESKey = null;
-
+        Key gsAESKey = null;
         try{
-            AESKey = new SecretKeySpec(shortBytes, "AES");
+            gsAESKey = new SecretKeySpec(shortBytes, "AES");
         }
         catch(Exception ex){
             ex.printStackTrace();
         }
 
-        gc.setAESKey(AESKey);
+        gc.setAESKey(gsAESKey);
 
         //Create AESEnncrypted who can hold state
-        AESEncrypter aesUsername = new AESEncrypter(AESKey);
-        AESEncrypter aesPassword = new AESEncrypter(AESKey);
+        AESEncrypter aesUsername = new AESEncrypter(gsAESKey);
+        AESEncrypter aesPassword = new AESEncrypter(gsAESKey);
 
         //Prompts the user for a login, then connects to the group server using the specified
         //port and server and allows access if it can be authenticated by the group server
@@ -485,6 +484,48 @@ public class RunUI {
                     fc.disconnect();
                     System.exit(0);
                 }
+
+                //Do D-H Exchange
+                DHParameterSpec dhSpec = null;
+                try {
+                    AlgorithmParameterGenerator dhGenerator = AlgorithmParameterGenerator.getInstance("DH");
+                    dhGenerator.init(1024, new SecureRandom());
+                    AlgorithmParameters dhParameters = dhGenerator.generateParameters();
+                    dhSpec = (DHParameterSpec)dhParameters.getParameterSpec(DHParameterSpec.class);
+                } catch (Exception ex){
+                    ex.printStackTrace();
+                }
+
+                //s = the secret number that the server generates
+                //p = the prime number
+                //g = prime number generator
+                //S = the calculated half key of the server (g^s mod p)
+                BigInteger c = new BigInteger(1024, random);
+                BigInteger p = dhSpec.getP();
+                BigInteger g = dhSpec.getG();
+                BigInteger C = g.modPow(c, p);
+
+                BigInteger S = fc.performDiffie(p, g, C);
+                BigInteger dhKey = S.modPow(c, p);
+
+                byte[] dhKeyBytes = dhKey.toByteArray();
+                byte[] shortBytes = new byte[16];
+
+                for(int i = 0; i < 16; i++){
+                    shortBytes[i] = dhKeyBytes[i];
+                }
+
+                Key fsAESKey = null;
+                try{
+                    fsAESKey = new SecretKeySpec(shortBytes, "AES");
+                }
+                catch(Exception ex){
+                    ex.printStackTrace();
+                }
+
+                //Create AESEncrypters that can hold state
+                AESEncrypter fsEncptr = new AESEncrypter(fsAESKey);
+
 
                 //After the FileServer is connected to and authenticated, connect the FileServer
                 //to the GroupServer to get its public key to verify tokens.

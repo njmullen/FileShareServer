@@ -4,15 +4,32 @@ import java.lang.Thread;
 import java.net.Socket;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Random;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import java.security.*;
+import javax.crypto.*;
+import java.math.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
+
 public class FileThread extends Thread
 {
 	private final Socket socket;
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	private PublicKey groupServerKey = null;
 
 	public FileThread(Socket _socket)
 	{
@@ -268,6 +285,58 @@ public class FileThread extends Thread
 					output.writeObject(e);
 
 				}
+
+				//Client wants to send GroupServer key
+				else if (e.getMessage().compareTo("GK") == 0){
+					if(e.getObjContents().size() != 1){
+						response = new Envelope("FAIL-BADCONTENTS");
+					}
+					else{
+						groupServerKey = (PublicKey)e.getObjContents().get(0);
+						response = new Envelope("OK");
+					}
+
+					output.writeObject(response);
+				}
+
+				//Client wants to do DH Exchange
+				else if (e.getMessage().compareTo("DH") == 0){
+					if(e.getObjContents().size() < 3){
+						response = new Envelope("FAIL-BADCONTENTS");
+					}
+
+					BigInteger p = (BigInteger)e.getObjContents().get(0);
+					BigInteger g = (BigInteger)e.getObjContents().get(1);
+					BigInteger C = (BigInteger)e.getObjContents().get(2);
+
+					Random random = new Random();
+				 	BigInteger s = new BigInteger(1024, random);
+				 	BigInteger S = g.modPow(s, p);
+				 	dhKey = C.modPow(s, p);
+
+
+				 	//Create AESKey
+				 	byte[] dhKeyBytes = dhKey.toByteArray();
+				 	byte[] shortBytes = new byte[16];
+
+				 	for(int i = 0; i < 16; i++){
+				 		shortBytes[i] = dhKeyBytes[i];
+				 	}
+
+				 	try{
+				 		AESKey = new SecretKeySpec(shortBytes, "AES");
+				 	}
+				 	catch(Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response = new Envelope("OK");
+				 	response.addObject(S);
+
+				 	output.writeObject(response);
+				}
+
+
 				else if(e.getMessage().equals("DISCONNECT"))
 				{
 					socket.close();
