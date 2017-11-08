@@ -1,5 +1,8 @@
 # Project: Phase 3
 ## Conor Lamb, Nick Mullen, Riley Marzka
+
+#### Please consult /reports/phase-3.pdf for images and diagrams
+
 ### Introduction
 
 To protect against the threats detailed in this phase of the project, we chose to apply several ideas to securing our system. First, all communication in the system will be encrypted with symmetric shared keys, exchanged using a Diffie-Hellman protocol. We chose Diffie-Hellman due to the fact that it involves 2 parties in the creation of a secret as well as provides confidentiality of said secret over a public channel. The Diffie-Hellman keys will be 1024-bit, which is sufficient to generate secure keys reasonably quickly.1 The keys will be generated randomly using a p and g that are randomly generated each time. The symmetric keys will be 128-bit AES keys in GCM mode. 128-bit AES provides ample security, integrity, and fast, efficient operations.2 Our AES cipher will be implemented in the GCM because it is an efficient block chaining mode and also utilizes GMAC for integrity. These symmetric keys (session keys) will be exchanged in two places: between the client and the GroupServer (Kcg) and between the client and the FileServer (Kcf). Exchanging session keys on each connection guarantees that the session keys are not reused, which maintains forward secrecy because if a session key is compromised, only information from one session is insecure. 
