@@ -118,32 +118,32 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 		message = new Envelope("GET");
 	 		//Encrypt the username and send it
-	 		AESEncrypter aesUsername = new AESEncrypter(AESKey);
-	 		EncryptedMessage encryptedUser = aesUsername.encrypt(username);
-	 		message.addObject(encryptedUser);
+	 		AESEncrypter encrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage usernameToSend = encrypter.encrypt(username);
+	 		message.addObject(usernameToSend);
+	 		output.writeObject(message);
 
+	 		//Get back the token and signature
 	 		response = (Envelope)input.readObject();
 	 		if(response.getMessage().equals("OK")){
-	 			EncryptedMessage tokenEnc = (EncryptedMessage)response.getObjContents().get(0);
-	 			EncryptedMessage signEnc = (EncryptedMessage)response.getObjContents().get(1);
-	 			
-	 			AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
-	 			AESDecrypter signDecrypter = new AESDecrypter(AESKey);
+	 			EncryptedMessage tokenIn = (EncryptedMessage)response.getObjContents().get(0);
+	 			EncryptedMessage signIn = (EncryptedMessage)response.getObjContents().get(1);
 
-	 			byte[] tokenBytes = tokenDecrypter.decryptBytes(tokenEnc);
-	 			byte[] tokenSig = signDecrypter.decryptBytes(signEnc);
+	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
+
+	 			byte[] tokenBytes = tokenDecr.decryptBytes(tokenIn);
+	 			byte[] signBytes = signDecr.decryptBytes(signIn);
 
 	 			Signature signature = Signature.getInstance("RSA");
-		 		signature.initVerify(groupKey);
-	            signature.update(tokenBytes);
-	            boolean signaturePass = signature.verify(tokenSig);
-	            if (!signaturePass){
-	                System.out.println("Token not able to be verified");
-	                System.exit(0);
-	            }
-
-	            Token token = new Token(tokenBytes);
-	            return token;
+	 			signature.initVerify(groupKey);
+	 			signature.update(tokenBytes);
+	 			if (signature.verify(signBytes)){
+	 				Token token = new Token(tokenBytes);
+	 				return token;
+	 			} else {
+	 				System.exit(0);
+	 			}
 	 		}
 
 	 	} catch(Exception ex){
