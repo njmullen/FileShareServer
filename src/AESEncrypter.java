@@ -31,8 +31,9 @@ public class AESEncrypter {
     }
   }
 
-  public EncryptedMessage encrypt(byte[] bytesToEncrypt) {
-    byte[] encryptedBytes = null;
+  public EncryptedMessage encrypt(byte[] toEncrypt) {
+    byte[] bytesToEncrypt = toEncrypt;
+    byte[] encryptedBytes= null;
     EncryptedMessage send = null;
 
   try {

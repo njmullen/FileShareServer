@@ -22,6 +22,7 @@ public class AESDecrypter {
   public AESDecrypter(Key key) {
     Security.addProvider(new BouncyCastleProvider());
     this.AESkey = key;
+    //currNonce = new BigInteger(nonce, 2);
     try {
       AESDecryptCipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
     } catch (Exception e) {
@@ -29,11 +30,11 @@ public class AESDecrypter {
     }
   }
 
-  public byte[] decryptByte(EncryptedMessage sent) {
+   public byte[] decryptBytes(EncryptedMessage sent) {
        byte[] decryptedText = null;
        byte[] encryptedBytes = sent.encryptedMessage;
     try {
-        IvParameterSpec GCMSpec = sent.ivSpec;
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.ivSpec);
         AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
         decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
       } catch (Exception ex){
@@ -46,7 +47,7 @@ public class AESDecrypter {
        byte[] decryptedText = null;
        byte[] encryptedBytes = sent.encryptedMessage;
     try {
-        IvParameterSpec GCMSpec = sent.ivSpec;
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.ivSpec);
         AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
         decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
       } catch (Exception ex){

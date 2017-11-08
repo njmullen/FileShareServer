@@ -5,16 +5,58 @@ import java.lang.Thread;
 import java.net.Socket;
 import java.io.*;
 import java.util.*;
+import java.security.*;
+import javax.crypto.*;
+import java.math.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
 
 public class GroupThread extends Thread
 {
 	private final Socket socket;
 	private GroupServer my_gs;
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	private PublicKey publicKey;
+	private PrivateKey privateKey;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
 		socket = _socket;
 		my_gs = _gs;
+		Security.addProvider(new BouncyCastleProvider());
+
+		//Read in public and private keys
+		try{
+			File privateKeyFile = new File("groupPrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			File publicKeyFile = new File("groupPublicKey");
+			FileInputStream keyIn = new FileInputStream(publicKeyFile);
+			byte[] publicKeyBytes = new byte[keyIn.available()];
+			keyIn.read(publicKeyBytes);
+			keyIn.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
+
 	}
 
 	public void run()
@@ -30,13 +72,21 @@ public class GroupThread extends Thread
 
 			do
 			{
-				Envelope message = (Envelope)input.readObject();
-				System.out.println("Request received: " + message.getMessage());
+				Envelope message = null;
+				try {
+					message = (Envelope)input.readObject();
+					System.out.println("Request received: " + message.getMessage());
+				} catch(EOFException e) {
+					System.out.println("A User Disconnected");
+					break;
+				}
 				Envelope response;
 
 				if(message.getMessage().equals("GET"))//Client wants a token
 				{
-					String username = (String)message.getObjContents().get(0); //Get the username
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(0); //Get the username
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String username = aesDecrypter.decrypt(usernameEnc);
 					if(username == null)
 					{
 						response = new Envelope("FAIL");
@@ -46,7 +96,7 @@ public class GroupThread extends Thread
 					else
 					{
 						UserToken yourToken = createToken(username); //Create a token
-						
+
 						String issuer = yourToken.getIssuer();
 						String subject = yourToken.getSubject();
 						List<String> groupList = yourToken.getGroups();
@@ -60,7 +110,27 @@ public class GroupThread extends Thread
 
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
-						response.addObject(token);
+
+						//Encrypt the token
+						byte[] tokenString = token.getTokenString();
+						byte[] signedToken = null;
+						try{
+							Signature signature = Signature.getInstance("RSA");
+							signature.initSign(privateKey);
+							signature.update(tokenString);
+							signedToken = signature.sign();
+						} catch (Exception a){
+							a.printStackTrace();
+						}
+
+						AESEncrypter tokenEncrypter = new AESEncrypter(AESKey);
+						AESEncrypter signedTokenEncrypter = new AESEncrypter(AESKey);
+
+						EncryptedMessage tokenToPass = tokenEncrypter.encrypt(tokenString);
+						EncryptedMessage signToPass = signedTokenEncrypter.encrypt(signedToken);
+						EncryptedToken encryptedToken = new EncryptedToken(tokenToPass, signToPass);
+
+						response.addObject(encryptedToken);
 						output.writeObject(response);
 					}
 				}
@@ -78,11 +148,27 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								byte[] password = (byte[])message.getObjContents().get(1);
-								UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
+								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
+								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(3);
 
-								if(createUser(username, password, yourToken))
+								if(!verifySignature(token, tokenSignature)){
+									System.out.println("Invalid signature");
+									System.exit(0);
+								}
+
+								AESDecrypter usernameDecr = new AESDecrypter(AESKey);
+								AESDecrypter passwordDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String usernamePlain = usernameDecr.decrypt(username);
+								byte[] passwordPlain = passwordDecr.decryptBytes(password);
+								byte[] tokenPlain = tokenDecr.decryptBytes(token);
+
+								Token yourToken = new Token(tokenPlain);
+
+
+								if(createUser(usernamePlain, passwordPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -107,10 +193,21 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2); //extract signature
 
-								if(deleteUser(username, yourToken))
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+								AESDecrypter usernameDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String userPlain = usernameDecr.decrypt(username);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								if(deleteUser(userPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -134,10 +231,22 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
 
-								if(createGroup(groupName, yourToken))
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+
+								AESDecrypter groupDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String groupPlain = groupDecr.decrypt(groupName);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								if(createGroup(groupPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -161,10 +270,22 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupToDelete = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
 
-								if(deleteGroup(groupToDelete, yourToken))
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+
+								AESDecrypter groupDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String groupPlain = groupDecr.decrypt(groupName);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								if(deleteGroup(groupPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -188,13 +309,40 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupnameToList = (String)message.getObjContents().get(0); //Extract the groupname
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
 
-								List<String> members = listMembers(groupnameToList, yourToken);
-								response = new Envelope("OK"); //Success
-								response.addObject(members);
-								
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+
+								AESDecrypter groupDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String groupPlain = groupDecr.decrypt(groupName);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								/////poop
+
+								List<String> members = listMembers(groupPlain, yourToken);
+								if(members != null) {
+									int membersize = members.size();
+
+									response = new Envelope("OK"); //Success
+									response.addObject(membersize);
+
+									for(int i = 0; i < members.size(); i++){
+										AESEncrypter listEncr = new AESEncrypter(AESKey);
+										EncryptedMessage listEncrd = listEncr.encrypt(members.get(i));
+										response.addObject(listEncrd);
+									}
+								} else {
+									response = new Envelope("FAIL");
+								}
+
+
 							}
 						}
 					}
@@ -203,7 +351,7 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
 				{
-				    if(message.getObjContents().size() < 3)
+				    if(message.getObjContents().size() < 4)
 					{
 						response = new Envelope("FAIL");
 					}
@@ -217,13 +365,31 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									String usernameToAdd = (String)message.getObjContents().get(0); //Extract the username
-									String groupnameToAdd = (String)message.getObjContents().get(1); //Extract the groupname
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
-
-									if(addUserToGroup(usernameToAdd, groupnameToAdd, yourToken))
+									if(message.getObjContents().get(3) != null)
 									{
-										response = new Envelope("OK"); //Success
+										EncryptedMessage usernameToAdd = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+										EncryptedMessage groupToAdd = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
+										EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
+										EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(3); //extract signature
+
+										if(!verifySignature(tokenIn, signIn)){
+											System.out.println("Token error");
+											System.exit(0);
+										}
+
+										AESDecrypter usernameDecr = new AESDecrypter(AESKey);
+										AESDecrypter groupDecr = new AESDecrypter(AESKey);
+										AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+
+										String userPlain = usernameDecr.decrypt(usernameToAdd);
+										String groupPlain = groupDecr.decrypt(groupToAdd);
+										byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+										Token yourToken = new Token(tokenPlain);
+
+										if(addUserToGroup(userPlain, groupPlain, yourToken))
+										{
+											response = new Envelope("OK"); //Success
+										}
 									}
 								}
 							}
@@ -248,11 +414,27 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									String usernameToDelete = (String)message.getObjContents().get(0); //Extract the username
-									String groupnameToDelete = (String)message.getObjContents().get(1); //Extract the groupname
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+									EncryptedMessage userName = (EncryptedMessage)message.getObjContents().get(0);
+									EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
+									EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
+									EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(3);
 
-									if(deleteUserFromGroup(usernameToDelete, groupnameToDelete, yourToken))
+									AESDecrypter groupDecr = new AESDecrypter(AESKey);
+									AESDecrypter userDecr = new AESDecrypter(AESKey);
+									AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+									String groupPlain = groupDecr.decrypt(groupName);
+									String userPlain = userDecr.decrypt(userName);
+									byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+									Token yourToken = new Token(tokenPlain);
+
+									if(!verifySignature(tokenIn, signIn)){
+										System.out.println("Token error");
+										System.exit(0);
+									}
+
+
+
+									if(deleteUserFromGroup(userPlain, groupPlain, yourToken))
 									{
 										response = new Envelope("OK"); //Success
 									}
@@ -271,15 +453,91 @@ public class GroupThread extends Thread
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
-					String username = (String)message.getObjContents().get(0);
-					byte[] passwordHash = (byte[])message.getObjContents().get(1);
+					EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
 
-					if(checkPassword(username, passwordHash)){
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String usernameDecr = aesDecrypter.decrypt(username);
+					String passwordDecr = aesDecrypter.decrypt(password);
+
+					//Hash password
+					byte[] passwordHash = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+		  				md.update(passwordDecr.getBytes("UTF-8"));
+		  				passwordHash = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					if(checkPassword(usernameDecr, passwordHash)){
 						response = new Envelope("OK");
 					} else {
 						response = new Envelope("FAIL");
 					}
 
+					output.writeObject(response);
+
+				//Client wants to do a DH exchange
+				} else if (message.getMessage().equals("DH")){
+					if(message.getObjContents().size() < 3){
+						response = new Envelope("FAIL");
+					}
+
+					BigInteger p = (BigInteger)message.getObjContents().get(0);
+					BigInteger g = (BigInteger)message.getObjContents().get(1);
+					BigInteger C = (BigInteger)message.getObjContents().get(2);
+
+					Random random = new Random();
+				 	BigInteger s = new BigInteger(1024, random);
+				 	BigInteger S = g.modPow(s, p);
+				 	dhKey = C.modPow(s, p);
+
+				 	byte[] dhKeyBytes = dhKey.toByteArray();
+				 	byte[] shortBytes = new byte[16];
+
+				 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
+
+				 	for(int i = 0; i < 16; i++){
+				 		shortBytes[i] = dhKeyBytes[i];
+				 	}
+
+				 	try{
+				 		AESKey = new SecretKeySpec(shortBytes, "AES");
+				 	}
+				 	catch(Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response = new Envelope("OK");
+				 	response.addObject(S);
+
+				 	output.writeObject(response);
+
+				//Client wants to authenticate the server with a random challenge
+				} else if (message.getMessage().equals("RANDOM")){
+					byte[] challenge = (byte[])message.getObjContents().get(0);
+
+					//Decrypts the sent challenge and sends it back for comparison
+					byte[] decryptedChallenge = null;
+					try {
+						Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+			            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
+			            //Decrypt the string using the Cipher
+			            decryptedChallenge = RSACipher.doFinal(challenge);
+					} catch (Exception ex){
+						ex.printStackTrace();
+					}
+					response = new Envelope("OK");
+					response.addObject(decryptedChallenge);
+
+					output.writeObject(response);
+
+				//Client wants public key of server
+				} else if (message.getMessage().equals("GETPUBLICKEY")){
+					response = new Envelope("KEY");
+					response.addObject(publicKey);
 					output.writeObject(response);
 				}
 				else
@@ -291,9 +549,27 @@ public class GroupThread extends Thread
 		}
 		catch(Exception e)
 		{
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
+			System.out.println("User Disconnected");
 		}
+	}
+
+	private boolean verifySignature(EncryptedMessage tokenIn, EncryptedMessage signature){
+		AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
+		AESDecrypter sigDecrypter = new AESDecrypter(AESKey);
+
+		byte[] tokenBytes = tokenDecrypter.decryptBytes(tokenIn);
+		byte[] sigBytes = sigDecrypter.decryptBytes(signature);
+
+		try{
+			Signature signaturev = Signature.getInstance("RSA");
+			signaturev.initVerify(publicKey);
+			signaturev.update(tokenBytes);
+			return signaturev.verify(sigBytes);
+		} catch(Exception sigex){
+			sigex.printStackTrace();
+		}
+
+		return false;
 	}
 
 	private boolean checkPassword(String username, byte[] password){
@@ -504,7 +780,7 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken){ 
+	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken){
 		String requester = yourToken.getSubject();
 		//Check that token holder and user exist
 		if(my_gs.userList.checkUser(requester) && my_gs.userList.checkUser(username)){
@@ -556,6 +832,6 @@ public class GroupThread extends Thread
 			//Doesn't exist
 			return null;
 		}
-	} 
+	}
 
 }

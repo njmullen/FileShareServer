@@ -19,16 +19,20 @@ import org.bouncycastle.util.encoders.Hex;
 
 public class FileClient extends Client implements FileClientInterface {
 
-	private PublicKey groupKey;
+	private PublicKey groupServerKey = null;
+	private AESDecrypter aes = null;
 	private Key AESKey = null;
-	private BigInteger dhKey = null;
+
+	public void setAESKey(Key key){
+		AESKey = key;
+	}
 
 	public boolean getGroupServerKey(String server, int port){
 		GroupClient gc = new GroupClient();
 		gc.connect(server, port);
 		if (gc.isConnected()){
 			//Get the public key
-			groupKey = gc.getPublicKey();
+			groupServerKey = gc.getPublicKey();
 			//Generate a random challenge and send to server to encrypt
             Random random = new Random();
             BigInteger challenge = new BigInteger(1024, random);
@@ -36,19 +40,37 @@ public class FileClient extends Client implements FileClientInterface {
             byte[] encryptedChallenge = null;
             try {
                 Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
-                RSACipher.init(Cipher.ENCRYPT_MODE, groupKey);
+                RSACipher.init(Cipher.ENCRYPT_MODE, groupServerKey);
                 //Encrypt the string using the Cipher
                 encryptedChallenge = RSACipher.doFinal(challengeBytes);
             } catch (Exception rsaExf){
                 rsaExf.printStackTrace();
             }
-            byte[] challengeRecieved = gc.sendRandomChallenge(encryptedChallenge);
-            if (!Arrays.equals(challengeRecieved, challengeBytes)){
+            boolean challengeRecieved = gc.sendRandomChallenge(encryptedChallenge, challengeBytes);
+            if (!challengeRecieved){
                 System.out.println("Unable to authenticate server");
                 gc.disconnect();
                 System.exit(0);
             }
-            return true;
+
+            //Send to FileThread
+            try{
+            	Envelope message = null, response = null;
+            	message = new Envelope("GK");
+            	message.addObject(groupServerKey);
+
+            	output.writeObject(message);
+
+            	response = (Envelope)input.readObject();
+            	if(response.getMessage().equals("OK")){
+            		return true;
+            	}
+            	return false;
+            }
+            catch(Exception ex){
+            	ex.printStackTrace();
+            }
+            return false;
 		} else {
 			System.out.println("GroupServer/FileServer error");
 			System.exit(0);
@@ -83,31 +105,6 @@ public class FileClient extends Client implements FileClientInterface {
 		return decryptedChallenge;
 	}
 
-	public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
-	 	Random random = new Random();
-	 	BigInteger s = new BigInteger(1024, random);
-	 	BigInteger S = g.modPow(s, p);
-	 	dhKey = C.modPow(s, p);
-
-	 	byte[] dhKeyBytes = dhKey.toByteArray();
-	 	byte[] shortBytes = new byte[16];
-
-	 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
-
-	 	for(int i = 0; i < 16; i++){
-	 		shortBytes[i] = dhKeyBytes[i];
-	 	}
-
-	 	try{
-	 		AESKey = new SecretKeySpec(shortBytes, "AES");
-	 	}
-	 	catch(Exception ex){
-	 		ex.printStackTrace();
-	 	}
-
-	 	return S;
-	 }
-
 	public PublicKey getPublicKey(){
 		byte[] publicKeyBytes = null;
 		PublicKey publicKey = null;
@@ -130,33 +127,6 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean delete(String filename, EncryptedToken token) {
-
-		//Decrypt the EncryptedToken
-		EncryptedMessage plainTokenEnc = token.encToken;
-        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-        //Verify the signature
-        try {
-            Signature signature = Signature.getInstance("RSA");
-            signature.initVerify(groupKey);
-            signature.update(plainToken);
-            boolean signaturePass = signature.verify(sigToken);
-            if (!signaturePass){
-                System.out.println("Token not able to be verified");
-                System.exit(0);
-            } 
-        } catch (Exception signEx){
-            signEx.printStackTrace();
-            System.exit(0);
-        }
-        
-        //Create the proper token
-        Token fullToken = new Token(plainToken);
-
 		String remotePath;
 		if (filename.charAt(0)=='/') {
 			remotePath = filename.substring(1);
@@ -164,9 +134,16 @@ public class FileClient extends Client implements FileClientInterface {
 		else {
 			remotePath = filename;
 		}
+
+		//Encrypt
+		AESEncrypter fileEnc = new AESEncrypter(AESKey);
+
+		//Encrypt filename and token and send to server
+		EncryptedMessage encryptedFile = fileEnc.encrypt(remotePath);
+
 		Envelope env = new Envelope("DELETEF"); //Success
-	    env.addObject(remotePath);
-	    env.addObject(fullToken);
+	    env.addObject(encryptedFile);
+	    env.addObject(token);
 	    try {
 			output.writeObject(env);
 		    env = (Envelope)input.readObject();
@@ -188,134 +165,94 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
-		//Decrypt the EncryptedToken
-		EncryptedMessage plainTokenEnc = token.encToken;
-        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-        //Verify the signature
-        try {
-            Signature signature = Signature.getInstance("RSA");
-            signature.initVerify(groupKey);
-            signature.update(plainToken);
-            boolean signaturePass = signature.verify(sigToken);
-            if (!signaturePass){
-                System.out.println("Token not able to be verified");
-                System.exit(0);
-            } 
-        } catch (Exception signEx){
-            signEx.printStackTrace();
-            System.exit(0);
-        }
-        
-        //Create the proper token
-        Token fullToken = new Token(plainToken);
-
-		if (sourceFile.charAt(0)=='/') {
-			sourceFile = sourceFile.substring(1);
-		}
-
-		File file = new File(destFile);
-	    try {
-	    				
+				if (sourceFile.charAt(0)=='/') {
+					sourceFile = sourceFile.substring(1);
+				}
 		
-		    if (!file.exists()) {
-		    	file.createNewFile();
-			    FileOutputStream fos = new FileOutputStream(file);
-			    
-			    Envelope env = new Envelope("DOWNLOADF"); //Success
-			    env.addObject(sourceFile);
-			    env.addObject(fullToken);
-			    output.writeObject(env); 
-			
-			    env = (Envelope)input.readObject();
-			    
-				while (env.getMessage().compareTo("CHUNK")==0) { 
-						fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
-						System.out.printf(".");
-						env = new Envelope("DOWNLOADF"); //Success
-						output.writeObject(env);
-						env = (Envelope)input.readObject();									
-				}										
-				fos.close();
+				File file = new File(destFile);
+			    try {
+			    				
 				
-			    if(env.getMessage().compareTo("EOF")==0) {
-			    	 fos.close();
-						System.out.printf("\nTransfer successful file %s\n", sourceFile);
-						env = new Envelope("OK"); //Success
-						output.writeObject(env);
-				}
-				else {
-						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
-						file.delete();
-						return false;								
-				}
-		    }    
-			 
-		    else {
-				System.out.printf("Error couldn't create file %s\n", destFile);
-				return false;
-		    }
+				    if (!file.exists()) {
+				    	file.createNewFile();
+					    FileOutputStream fos = new FileOutputStream(file);
+					    
+					    Envelope env = new Envelope("DOWNLOADF"); //Success
+
+					    AESEncrypter fileEnc = new AESEncrypter(AESKey);
+					    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
+					    env.addObject(sourceEnc);
+					    env.addObject(token);
+					    output.writeObject(env); 
+					
+					    env = (Envelope)input.readObject();
+					    
+						while (env.getMessage().compareTo("CHUNK")==0) { 
+								fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
+								System.out.printf(".");
+								env = new Envelope("DOWNLOADF"); //Success
+								output.writeObject(env);
+								env = (Envelope)input.readObject();									
+						}										
+						fos.close();
 						
-	
-	    } catch (IOException e1) {
-	    	
-	    	System.out.printf("Error couldn't create file %s\n", destFile);
-	    	return false;
-	    
+					    if(env.getMessage().compareTo("EOF")==0) {
+					    	 fos.close();
+								System.out.printf("\nTransfer successful file %s\n", sourceFile);
+								env = new Envelope("OK"); //Success
+								output.writeObject(env);
+						}
+						else {
+								System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
+								file.delete();
+								return false;								
+						}
+				    }    
+					 
+				    else {
+						System.out.printf("Error couldn't create file %s\n", destFile);
+						return false;
+				    }
+								
 			
-		}
-	    catch (ClassNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		 return true;
+			    } catch (IOException e1) {
+			    	
+			    	System.out.printf("Error couldn't create file %s\n", destFile);
+			    	return false;
+			    
+					
+				}
+			    catch (ClassNotFoundException e1) {
+					e1.printStackTrace();
+				}
+				 return true;
 	}
 
 	@SuppressWarnings("unchecked")
 	public List<String> listFiles(EncryptedToken token) {
-		//Decrypt the EncryptedToken
-		EncryptedMessage plainTokenEnc = token.encToken;
-        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-        //Verify the signature
-        try {
-            Signature signature = Signature.getInstance("RSA");
-            signature.initVerify(groupKey);
-            signature.update(plainToken);
-            boolean signaturePass = signature.verify(sigToken);
-            if (!signaturePass){
-                System.out.println("Token not able to be verified");
-                System.exit(0);
-            } 
-        } catch (Exception signEx){
-            signEx.printStackTrace();
-            System.exit(0);
-        }
-        
-        //Create the proper token
-        Token fullToken = new Token(plainToken);
-
 		 try
 		 {
 			 Envelope message = null, e = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
-			 message.addObject(fullToken); //Add requester's token
+			 message.addObject(token); //Add requester's token
 			 output.writeObject(message); 
 			 
 			 e = (Envelope)input.readObject();
-			 
+
+
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
 			 { 
-				return (List<String>)e.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				int size = (int)e.getObjContents().get(0);
+				List<String> fileList = new ArrayList<String>();
+				for(int i = 1; i < size + 1; i++){
+			 		EncryptedMessage encList = (EncryptedMessage)e.getObjContents().get(i);
+			 		AESDecrypter listDecr = new AESDecrypter(AESKey);
+			 		String thisMember = listDecr.decrypt(encList);
+			 		fileList.add(thisMember);
+			 	}
+			 	return fileList;
 			 }
 				
 			 return null;
@@ -331,33 +268,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 	public boolean upload(String sourceFile, String destFile, String group,
 			EncryptedToken token) {
-		
-		//Decrypt the EncryptedToken
-		EncryptedMessage plainTokenEnc = token.encToken;
-        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-        //Verify the signature
-        try {
-            Signature signature = Signature.getInstance("RSA");
-            signature.initVerify(groupKey);
-            signature.update(plainToken);
-            boolean signaturePass = signature.verify(sigToken);
-            if (!signaturePass){
-                System.out.println("Token not able to be verified");
-                System.exit(0);
-            } 
-        } catch (Exception signEx){
-            signEx.printStackTrace();
-            System.exit(0);
-        }
-        
-        //Create the proper token
-        Token fullToken = new Token(plainToken);
-
+			
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;
 		 }
@@ -365,12 +276,19 @@ public class FileClient extends Client implements FileClientInterface {
 		try
 		 {
 			 
+		 	//Encrypt Everything
+		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
+		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
+
+		 	EncryptedMessage dest = destEnc.encrypt(destFile);
+		 	EncryptedMessage _group = groupEnc.encrypt(group);
+
 			 Envelope message = null, env = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("UPLOADF");
-			 message.addObject(destFile);
-			 message.addObject(group);
-			 message.addObject(fullToken); //Add requester's token
+			 message.addObject(dest);
+			 message.addObject(_group);
+			 message.addObject(token); //Add requester's token
 			 output.writeObject(message);
 			
 			 
@@ -406,7 +324,11 @@ public class FileClient extends Client implements FileClientInterface {
 						return false;
 					}
 					
-					message.addObject(buf);
+					AESEncrypter bufEnc = new AESEncrypter(AESKey);
+
+					EncryptedMessage bufSend = bufEnc.encrypt(buf);
+
+					message.addObject(bufSend);
 					message.addObject(new Integer(n));
 					
 					output.writeObject(message);
@@ -450,6 +372,31 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 		 return true;
 	}
+
+	//Diffie-Hellman exchange to create shared AES session key
+	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
+	 	try{
+	 		Envelope message = null, response = null;
+	 		message = new Envelope("DH");
+		 	message.addObject(p);
+		 	message.addObject(g);
+		 	message.addObject(C);
+
+		 	output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				return S;
+			}
+			return null;
+	 	} catch (Exception ex){
+	 		ex.printStackTrace();
+	 	}
+	 	
+	 	return null;
+	 }
+
 
 }
 

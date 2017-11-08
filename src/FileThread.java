@@ -4,15 +4,32 @@ import java.lang.Thread;
 import java.net.Socket;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Random;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import java.security.*;
+import javax.crypto.*;
+import java.math.*;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
+import org.bouncycastle.jce.provider.*;
+import java.security.spec.*;
+import java.security.*;
+import org.bouncycastle.jcajce.provider.digest.SHA3.DigestSHA3;
+import org.bouncycastle.util.encoders.Hex;
+
 public class FileThread extends Thread
 {
 	private final Socket socket;
+	private BigInteger dhKey = null;
+	private Key AESKey = null;
+	private PublicKey groupServerKey = null;
 
 	public FileThread(Socket _socket)
 	{
@@ -45,7 +62,24 @@ public class FileThread extends Thread
 				    		response = new Envelope("FAIL-BADTOKEN");
 				    	}
 				    	else{
-				    		UserToken yourToken = (UserToken)e.getObjContents().get(0);
+				    		EncryptedToken yourToken = (EncryptedToken)e.getObjContents().get(0);
+
+				    		EncryptedMessage tokenPart = yourToken.getToken();
+				    		EncryptedMessage sigPart = yourToken.getSignature();
+
+				    		AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+				    		AESDecrypter sigDecr = new AESDecrypter(AESKey);
+
+				    		byte[] tokenBytes = tokenDecr.decryptBytes(tokenPart);
+				    		byte[] sigBytes = sigDecr.decryptBytes(sigPart);
+
+				    		if(!verifySig(tokenBytes, sigBytes)){
+				    			System.out.println("Token fail");
+				    			System.exit(0);
+				    		}
+
+				    		Token newToken = new Token(tokenBytes);
+
 				    		ArrayList<ShareFile> fullList = new ArrayList<ShareFile>(FileServer.fileList.getFiles()); //Pull full list from file server
 				    		List<String> accessList = new ArrayList<String>(); //Stores names of files which user has access to
 				    		
@@ -54,15 +88,23 @@ public class FileThread extends Thread
 				    		while(!fullList.isEmpty()){
 				    			currFile = fullList.remove(0);
 				    			String fGroup = currFile.getGroup();
-				    			if(yourToken.getGroups().contains(fGroup)){
+				    			if(newToken.getGroups().contains(fGroup)){
 				    				accessList.add(currFile.getPath());
 				    			}
 				    		}
 
-				    		System.out.printf("Successfully generated file list\n");
+				    		int listSize = accessList.size();
 				    		response = new Envelope("OK"); //Success
-				    		response.addObject(accessList);
-				    		
+				    		response.addObject(listSize);
+
+							for(int i = 0; i < accessList.size(); i++){
+								AESEncrypter listEncr = new AESEncrypter(AESKey);
+								EncryptedMessage listEncrd = listEncr.encrypt(accessList.get(i));
+								response.addObject(listEncrd);
+							}
+
+				    		System.out.printf("Successfully generated file list\n");
+				    						    		
 				    		output.writeObject(response);
 				    	}
 				    }
@@ -86,9 +128,31 @@ public class FileThread extends Thread
 							response = new Envelope("FAIL-BADTOKEN");
 						}
 						else {
-							String remotePath = (String)e.getObjContents().get(0);
-							String group = (String)e.getObjContents().get(1);
-							UserToken yourToken = (UserToken)e.getObjContents().get(2); //Extract token
+
+							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
+							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
+							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+
+							AESDecrypter patDec = new AESDecrypter(AESKey);
+							AESDecrypter groupDec = new AESDecrypter(AESKey);
+							AESDecrypter tokDec = new AESDecrypter(AESKey);
+							AESDecrypter sigDec = new AESDecrypter(AESKey);
+
+							String remotePath = patDec.decrypt(encPat);
+							String group = groupDec.decrypt(groupPat);
+
+							EncryptedMessage tokenP = encTok.getToken();
+							EncryptedMessage sigP = encTok.getSignature();
+
+							byte[] tokBytes = tokDec.decryptBytes(tokenP);
+							byte[] sigBytes = sigDec.decryptBytes(sigP);
+
+							if(!verifySig(tokBytes, sigBytes)){
+								System.out.printf("INVALID SIGNATURE!");
+								System.exit(0);
+							}
+
+							Token yourToken = new Token(tokBytes);
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -109,7 +173,12 @@ public class FileThread extends Thread
 
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
-									fos.write((byte[])e.getObjContents().get(0), 0, (Integer)e.getObjContents().get(1));
+
+									EncryptedMessage encBuf = (EncryptedMessage)e.getObjContents().get(0);
+
+									AESDecrypter decBuf = new AESDecrypter(AESKey);
+
+									fos.write(decBuf.decryptBytes(encBuf), 0, (Integer)e.getObjContents().get(1));
 									response = new Envelope("READY"); //Success
 									output.writeObject(response);
 									e = (Envelope)input.readObject();
@@ -133,8 +202,29 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
+					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
+
+					EncryptedMessage tokenP = encTok.getToken();
+					EncryptedMessage sigP = encTok.getSignature();
+
+					AESDecrypter tokenDec = new AESDecrypter(AESKey);
+					AESDecrypter sigDec = new AESDecrypter(AESKey);
+
+					byte[] tokBytes = tokenDec.decryptBytes(tokenP);
+					byte[] sigBytes = sigDec.decryptBytes(sigP);
+
+					if(!verifySig(tokBytes, sigBytes)){
+						System.out.println("Token fail");
+						System.exit(0);
+					}
+
+					AESDecrypter remDec = new AESDecrypter(AESKey);
+					String remotePath = remDec.decrypt(encRemPat);
+
+					Token t = new Token(tokBytes);
+					
+					
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -176,7 +266,7 @@ public class FileThread extends Thread
 
 								}
 
-
+								
 								e.addObject(buf);
 								e.addObject(new Integer(n));
 
@@ -223,51 +313,118 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
-					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-					if (sf == null) {
-						System.out.printf("Error: File %s doesn't exist\n", remotePath);
-						e = new Envelope("ERROR_DOESNTEXIST");
-					}
-					else if (!t.getGroups().contains(sf.getGroup())){
-						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
-						e = new Envelope("ERROR_PERMISSION");
-					}
-					else {
+					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
+					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
 
-						try
-						{
+					
+					//Decrypt everything
+					AESDecrypter remDec = new AESDecrypter(AESKey);
+					String remotePath = remDec.decrypt(encRemPat);
+
+					AESDecrypter tokDec = new AESDecrypter(AESKey);
+					byte[] tokenBytes = tokDec.decryptBytes(encTok.getToken());
+
+					AESDecrypter sigDec = new AESDecrypter(AESKey);
+					byte[] sigBytes = sigDec.decryptBytes(encTok.getSignature());
 
 
-							File f = new File("shared_files/"+"_"+remotePath.replace('/', '_'));
-
-							if (!f.exists()) {
-								System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
-								e = new Envelope("ERROR_FILEMISSING");
-							}
-							else if (f.delete()) {
-								System.out.printf("File %s deleted from disk\n", "_"+remotePath.replace('/', '_'));
-								FileServer.fileList.removeFile("/"+remotePath);
-								e = new Envelope("OK");
-							}
-							else {
-								System.out.printf("Error deleting file %s from disk\n", "_"+remotePath.replace('/', '_'));
-								e = new Envelope("ERROR_DELETE");
-							}
-
-
+					if(verifySig(tokenBytes, sigBytes)){
+						Token t = new Token(tokenBytes);
+						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
+						if (sf == null) {
+							System.out.printf("Error: File %s doesn't exist\n", remotePath);
+							e = new Envelope("ERROR_DOESNTEXIST");
 						}
-						catch(Exception e1)
-						{
-							System.err.println("Error: " + e1.getMessage());
-							e1.printStackTrace(System.err);
-							e = new Envelope(e1.getMessage());
+						else if (!t.getGroups().contains(sf.getGroup())){
+							System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
+							e = new Envelope("ERROR_PERMISSION");
+						}
+						else {
+							try
+							{
+								File f = new File("shared_files/"+"_"+remotePath.replace('/', '_'));
+								if (!f.exists()) {
+									System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
+									e = new Envelope("ERROR_FILEMISSING");
+								}
+								else if (f.delete()) {
+									System.out.printf("File %s deleted from disk\n", "_"+remotePath.replace('/', '_'));
+									FileServer.fileList.removeFile("/"+remotePath);
+									e = new Envelope("OK");
+								}
+								else {
+									System.out.printf("Error deleting file %s from disk\n", "_"+remotePath.replace('/', '_'));
+									e = new Envelope("ERROR_DELETE");
+								}
+							}
+							catch(Exception e1)
+							{
+								System.err.println("Error: " + e1.getMessage());
+								e1.printStackTrace(System.err);
+								e = new Envelope(e1.getMessage());
+							}
 						}
 					}
+					else{
+						e = new Envelope("FAIL!! UNABLE TO VERIFY SIGNATURE");
+					}
+
+					
 					output.writeObject(e);
 
 				}
+
+				//Client wants to send GroupServer key
+				else if (e.getMessage().compareTo("GK") == 0){
+					if(e.getObjContents().size() != 1){
+						response = new Envelope("FAIL-BADCONTENTS");
+					}
+					else{
+						groupServerKey = (PublicKey)e.getObjContents().get(0);
+						response = new Envelope("OK");
+					}
+
+					output.writeObject(response);
+				}
+
+				//Client wants to do DH Exchange
+				else if (e.getMessage().compareTo("DH") == 0){
+					if(e.getObjContents().size() < 3){
+						response = new Envelope("FAIL-BADCONTENTS");
+					}
+
+					BigInteger p = (BigInteger)e.getObjContents().get(0);
+					BigInteger g = (BigInteger)e.getObjContents().get(1);
+					BigInteger C = (BigInteger)e.getObjContents().get(2);
+
+					Random random = new Random();
+				 	BigInteger s = new BigInteger(1024, random);
+				 	BigInteger S = g.modPow(s, p);
+				 	dhKey = C.modPow(s, p);
+
+
+				 	//Create AESKey
+				 	byte[] dhKeyBytes = dhKey.toByteArray();
+				 	byte[] shortBytes = new byte[16];
+
+				 	for(int i = 0; i < 16; i++){
+				 		shortBytes[i] = dhKeyBytes[i];
+				 	}
+
+				 	try{
+				 		AESKey = new SecretKeySpec(shortBytes, "AES");
+				 	}
+				 	catch(Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response = new Envelope("OK");
+				 	response.addObject(S);
+
+				 	output.writeObject(response);
+				}
+
+
 				else if(e.getMessage().equals("DISCONNECT"))
 				{
 					socket.close();
@@ -277,9 +434,26 @@ public class FileThread extends Thread
 		}
 		catch(Exception e)
 		{
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
+			System.out.println("User Disconnected");
 		}
+	}
+
+	private boolean verifySig(byte[] tokenBytes, byte[] sigBytes){
+		try{
+			Signature signature = Signature.getInstance("RSA");
+			signature.initVerify(groupServerKey);
+			signature.update(tokenBytes);
+			if (signature.verify(sigBytes)){
+				return true;
+			} else {
+				return false;
+			}
+		}
+		catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return false;
+		
 	}
 
 }

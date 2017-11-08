@@ -24,53 +24,59 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private Key AESKey = null;
 	private AESDecrypter aes = null;
 	private String startNonce = null;
+	private PublicKey groupKey = null;
+	private byte[] tokenBytes = null;
+	private byte[] signBytes = null;
+	private EncryptedToken tokenObj = null;
 
-	public byte[] sendRandomChallenge(byte[] challenge){
-		//Decrypt the random challenge with private key and return it
-		Security.addProvider(new BouncyCastleProvider());
-		PrivateKey privateKey = null;
+	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
+		Envelope message = null;
+		Envelope response = null;
 		byte[] decryptedChallenge = null;
-		try {
-			File privateKeyFile = new File("groupPrivateKey");
-			FileInputStream input = new FileInputStream(privateKeyFile);
-			byte[] privateKeyBytes = new byte[input.available()];
-			input.read(privateKeyBytes);
-			input.close();
 
-			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			privateKey = keyFactory.generatePrivate(privateKeySpec);
+		try{
+			message = new Envelope("RANDOM");
+			message.addObject(challenge);
+			output.writeObject(message);
 
-			Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
-            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
-            //Decrypt the string using the Cipher
-            decryptedChallenge = RSACipher.doFinal(challenge);
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				decryptedChallenge = (byte[])response.getObjContents().get(0);
+				if(Arrays.equals(decryptedChallenge, challengeOriginal)){
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
 
-		return decryptedChallenge;
+		return false;
 	}
 
 	public PublicKey getPublicKey(){
-		byte[] publicKeyBytes = null;
-		PublicKey publicKey = null;
+		Envelope message = null;
+		Envelope response = null;
+		PublicKey publicKey;
 
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			File publicKeyFile = new File("groupPublicKey");
-			FileInputStream input = new FileInputStream(publicKeyFile);
-			publicKeyBytes = new byte[input.available()];
-			input.read(publicKeyBytes);
-			input.close();
+		try{
+			message = new Envelope("GETPUBLICKEY");
+			output.writeObject(message);
 
-			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-			publicKey = keyFactory.generatePublic(publicKeySpec);
-		} catch (Exception ex){
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("KEY")){
+				publicKey = (PublicKey)response.getObjContents().get(0);
+				groupKey = publicKey;
+				return publicKey;
+			}
+		} catch(Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKey;
+		return null;
 	}
 
 	public boolean checkPassword(String usernameEnc, String passwordEnc){
@@ -80,23 +86,14 @@ public class GroupClient extends Client implements GroupClientInterface {
 	}
 
 	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
-		aes = new AESDecrypter(AESKey);
-		String username = aes.decrypt(usernameEnc);
-		String password = aes.decrypt(passwordEnc);
 		Envelope message = null;
 		Envelope response = null;
-		try {
+
+		//Send encrypted passwords
+		try{
 			message = new Envelope("CHECKPWD");
-			byte[] passwordHash = null;
-			try {
-				DigestSHA3 md = new DigestSHA3(256);
-				md.update(password.getBytes("UTF-8"));
-				passwordHash = md.digest();
-			} catch(Exception ex) {
-				ex.printStackTrace();
-			}
-			message.addObject(username);
-			message.addObject(passwordHash);
+			message.addObject(usernameEnc);
+			message.addObject(passwordEnc);
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
@@ -108,111 +105,80 @@ public class GroupClient extends Client implements GroupClientInterface {
 		} catch(Exception ex){
 			ex.printStackTrace();
 		}
+
 		return false;
 	}
 
-	 public EncryptedToken getToken(String username)
-	 {
-		try
-		{
-			UserToken token = null;
-			Envelope message = null, response = null;
-			EncryptedToken tokenEnc = null;
+	public void setAESKey(Key AESKeys){
+		this.AESKey = AESKeys;
+	}
 
-			//Tell the server to return a token.
-			message = new Envelope("GET");
-			message.addObject(username); //Add user name string
-			output.writeObject(message);
+	 public EncryptedToken getToken(String username){
+	 	try{
+	 		Envelope message = null;
+	 		Envelope response = null;
+	 		Security.addProvider(new BouncyCastleProvider());
 
-			//Get the response from the server
-			response = (Envelope)input.readObject();
+	 		message = new Envelope("GET");
+	 		//Encrypt the username and send it
+	 		AESEncrypter encrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage usernameToSend = encrypter.encrypt(username);
+	 		message.addObject(usernameToSend);
+	 		output.writeObject(message);
 
-			//Successful response
-			if(response.getMessage().equals("OK"))
-			{
-				//If there is a token in the Envelope, return it
-				ArrayList<Object> temp = null;
-				temp = response.getObjContents();
+	 		//Get back the token and signature
+	 		response = (Envelope)input.readObject();
+	 		if(response.getMessage().equals("OK")){
+	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
+	 			EncryptedMessage tokenIn = tokenObj.getToken();
+				EncryptedMessage signIn = tokenObj.getSignature();
 
-				if(temp.size() == 1)
-				{
-					//Set security provider and read private key from file
-					Security.addProvider(new BouncyCastleProvider());
-					token = (UserToken)temp.get(0);
+	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
 
-					try {
-						File privateKeyFile = new File("groupPrivateKey");
-						FileInputStream input = new FileInputStream(privateKeyFile);
-						byte[] privateKeyBytes = new byte[input.available()];
-						input.read(privateKeyBytes);
-						input.close();
+	 			tokenBytes = tokenDecr.decryptBytes(tokenIn);
+	 			signBytes = signDecr.decryptBytes(signIn);
 
-						PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-						KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-						PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
+	 			Signature signature = Signature.getInstance("RSA");
+	 			signature.initVerify(groupKey);
+	 			signature.update(tokenBytes);
+	 			if (signature.verify(signBytes)){
+	 				return tokenObj;
+	 			} else {
+	 				System.exit(0);
+	 			}
+	 		}
 
-						byte[] tokenString = token.getTokenString();
-
-						Signature signature = Signature.getInstance("RSA");
-						signature.initSign(privateKey);
-	            		signature.update(tokenString);
-	            		byte[] signatureBytes = signature.sign();
-
-	            		AESEncrypter aesPlainToken = new AESEncrypter(AESKey);
-	            		AESEncrypter aesSignedToken = new AESEncrypter(AESKey);
-
-	            		EncryptedMessage encryptedPlainToken = aesPlainToken.encrypt(tokenString);
-        				EncryptedMessage encryptedSignedToken = aesSignedToken.encrypt(signatureBytes);
-
-        				tokenEnc = new EncryptedToken(encryptedPlainToken, encryptedSignedToken);
-
-					} catch(Exception ex){
-						ex.printStackTrace();
-					}
-
-					return tokenEnc;
-				}
-			}
-
-			return null;
-		}
-		catch(Exception e)
-		{
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
-			return null;
-		}
-
+	 	} catch(Exception ex){
+	 		ex.printStackTrace();
+	 	}
+	 	return null;
 	 }
 
 	 //Diffie-Hellman exchange to create shared AES session key
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
-	 	Random random = new Random();
-	 	BigInteger s = new BigInteger(1024, random);
-	 	BigInteger S = g.modPow(s, p);
-	 	dhKey = C.modPow(s, p);
-
-	 	byte[] dhKeyBytes = dhKey.toByteArray();
-	 	byte[] shortBytes = new byte[16];
-
-	 	//System.out.println("GS-Side DH Key: "+ dhKey.toString());
-
-	 	for(int i = 0; i < 16; i++){
-	 		shortBytes[i] = dhKeyBytes[i];
-	 	}
-
 	 	try{
-	 		AESKey = new SecretKeySpec(shortBytes, "AES");
-	 	}
-	 	catch(Exception ex){
+	 		Envelope message = null, response = null;
+	 		message = new Envelope("DH");
+		 	message.addObject(p);
+		 	message.addObject(g);
+		 	message.addObject(C);
+
+		 	output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				return S;
+			}
+			return null;
+
+
+	 	} catch (Exception ex){
 	 		ex.printStackTrace();
 	 	}
 
-	 	return S;
-	 }
-
-	 public void setNonce(String nonce) {
-		 startNonce = nonce;
+	 	return null;
 	 }
 
 	 public boolean createUser(String username, String password, EncryptedToken token)
@@ -228,40 +194,28 @@ public class GroupClient extends Client implements GroupClientInterface {
 				} catch(Exception ex) {
 					ex.printStackTrace();
 				}
-
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
-				message.addObject(username); //Add user name string
-				message.addObject(passwordHash);
-				message.addObject(fullToken); //Add the requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
+
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(usernameEncrypted); //Add user name string
+				message.addObject(passwordEncrypted);
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -288,38 +242,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 			{
 				Envelope message = null, response = null;
 
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
-				message.addObject(username); //Add user name
-				message.addObject(fullToken);  //Add requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(usernameEncrypted); //Add user name
+				message.addObject(tokenIn);  //Add requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -345,39 +284,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 		 try
 			{
 				Envelope message = null, response = null;
-
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to create a group
 				message = new Envelope("CGROUP");
-				message.addObject(groupname); //Add the group name string
-				message.addObject(fullToken); //Add the requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(groupEncrypted); //Add the group name string
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -403,41 +326,25 @@ public class GroupClient extends Client implements GroupClientInterface {
 		 try
 			{
 				Envelope message = null, response = null;
-
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to delete a group
 				message = new Envelope("DGROUP");
-				message.addObject(groupname); //Add group name string
-				message.addObject(fullToken); //Add requester's token
-				output.writeObject(message);
 
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(groupEncrypted); //Add the group name string
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
+				output.writeObject(message);
+			
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
@@ -461,39 +368,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 		 try
 		 {
 			 Envelope message = null, response = null;
-
-			 //Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 			 //Tell the server to return the member list
 			 message = new Envelope("LMEMBERS");
-			 message.addObject(group); //Add group name string
-			 message.addObject(fullToken); //Add requester's token
+
+			 if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+			}
+
+			 AESEncrypter groupEnc = new AESEncrypter(AESKey);
+			 EncryptedMessage groupEncrypted = groupEnc.encrypt(group);
+
+			 EncryptedMessage tokenIn = token.getToken();
+			 EncryptedMessage signIn = token.getSignature();
+
+			 message.addObject(groupEncrypted); //Add the group name string
+			 message.addObject(tokenIn); //Add the requester's token
+			 message.addObject(signIn);
 			 output.writeObject(message);
 
 			 response = (Envelope)input.readObject();
@@ -501,7 +392,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 //If server indicates success, return the member list
 			 if(response.getMessage().equals("OK"))
 			 {
-				return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+			 	int size = (int)response.getObjContents().get(0);
+			 	List<String> memberList = new ArrayList<String>();
+			 	for(int i = 1; i < size + 1; i++){
+			 		EncryptedMessage encList = (EncryptedMessage)response.getObjContents().get(i);
+			 		AESDecrypter listDecr = new AESDecrypter(AESKey);
+			 		String thisMember = listDecr.decrypt(encList);
+			 		memberList.add(thisMember);
+			 	}
+			 	return memberList;
 			 }
 
 			 return null;
@@ -519,41 +418,27 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 {
 		 try
 			{
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
 				Envelope message = null, response = null;
-
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to add a user to the group
 				message = new Envelope("AUSERTOGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
-				message.addObject(fullToken); //Add requester's token
+				message.addObject(usernameEncrypted); //Add user name string
+				message.addObject(groupEncrypted); //Add group name string
+				message.addObject(tokenIn); //Add requester's token
+				message.addObject(signIn); //Add requester's token
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -578,40 +463,26 @@ public class GroupClient extends Client implements GroupClientInterface {
 		 try
 			{
 				Envelope message = null, response = null;
-
-				//Decrypt the EncryptedToken
-				EncryptedMessage plainTokenEnc = token.encToken;
-		        EncryptedMessage signedTokenEnc = token.encSigToken;
-
-		        AESDecrypter tokenAESDecrypted = new AESDecrypter(AESKey);
-		        byte[] plainToken = tokenAESDecrypted.decryptByte(plainTokenEnc);
-		        byte[] sigToken = tokenAESDecrypted.decryptByte(signedTokenEnc);
-
-		        PublicKey groupKey = getPublicKey();
-
-		        //Verify the signature
-		        try {
-		            Signature signature = Signature.getInstance("RSA");
-		            signature.initVerify(groupKey);
-		            signature.update(plainToken);
-		            boolean signaturePass = signature.verify(sigToken);
-		            if (!signaturePass){
-		                System.out.println("Token not able to be verified");
-		                System.exit(0);
-		            } 
-		        } catch (Exception signEx){
-		            signEx.printStackTrace();
-		            System.exit(0);
-		        }
-		        
-		        //Create the proper token
-		        Token fullToken = new Token(plainToken);
-
 				//Tell the server to remove a user from the group
 				message = new Envelope("RUSERFROMGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
-				message.addObject(fullToken); //Add requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				AESEncrypter userEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+				EncryptedMessage userEncrypted = userEnc.encrypt(username);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(userEncrypted); //Add user name string
+				message.addObject(groupEncrypted); //Add group name string
+				message.addObject(tokenIn); //Add requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -629,6 +500,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 				e.printStackTrace(System.err);
 				return false;
 			}
+	 }
+
+	 public boolean verifyToken(EncryptedToken tokenIn){
+	 	EncryptedMessage token = tokenIn.token;
+	 	EncryptedMessage signature = tokenIn.signature;
+
+	 	AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+	 	byte[] tokenPlain = tokenDecr.decryptBytes(token);
+	 	if(!Arrays.equals(tokenPlain, tokenBytes)){
+	 		return false;
+	 	} else {
+	 		return true;
+	 	}
 	 }
 
 }
