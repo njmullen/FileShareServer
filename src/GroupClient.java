@@ -370,8 +370,21 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 Envelope message = null, response = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LMEMBERS");
-			 message.addObject(group); //Add group name string
-			 message.addObject(token); //Add requester's token
+
+			 if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+			}
+
+			 AESEncrypter groupEnc = new AESEncrypter(AESKey);
+			 EncryptedMessage groupEncrypted = groupEnc.encrypt(group);
+
+			 EncryptedMessage tokenIn = token.getToken();
+			 EncryptedMessage signIn = token.getSignature();
+
+			 message.addObject(groupEncrypted); //Add the group name string
+			 message.addObject(tokenIn); //Add the requester's token
+			 message.addObject(signIn);
 			 output.writeObject(message);
 
 			 response = (Envelope)input.readObject();
@@ -379,7 +392,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 //If server indicates success, return the member list
 			 if(response.getMessage().equals("OK"))
 			 {
-				return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+			 	int size = (int)response.getObjContents().get(0);
+			 	List<String> memberList = new ArrayList<String>();
+			 	for(int i = 1; i < size + 1; i++){
+			 		EncryptedMessage encList = (EncryptedMessage)response.getObjContents().get(i);
+			 		AESDecrypter listDecr = new AESDecrypter(AESKey);
+			 		String thisMember = listDecr.decrypt(encList);
+			 		memberList.add(thisMember);
+			 	}
+			 	return memberList;
 			 }
 
 			 return null;
@@ -429,9 +450,24 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to remove a user from the group
 				message = new Envelope("RUSERFROMGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
-				message.addObject(token); //Add requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				AESEncrypter userEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+				EncryptedMessage userEncrypted = userEnc.encrypt(username);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(userEncrypted); //Add user name string
+				message.addObject(groupEncrypted); //Add group name string
+				message.addObject(tokenIn); //Add requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
