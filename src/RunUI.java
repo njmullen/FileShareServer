@@ -32,6 +32,8 @@ public class RunUI {
     String tokenSig = null;
 
     String username = null;
+
+    Key gsAESKey = null;
     
 
     Security.addProvider(new BouncyCastleProvider());
@@ -195,7 +197,7 @@ public class RunUI {
             shortBytes[i] = dhKeyBytes[i];
         }
 
-        Key gsAESKey = null;
+        gsAESKey = null;
         try{
             gsAESKey = new SecretKeySpec(shortBytes, "AES");
         }
@@ -249,19 +251,14 @@ public class RunUI {
         //If the username doesn't exist, throw invalid username, though this would have
         //said invalid password and kicked user out before this is reached
       	token = gc.getToken(username);
-        
-        //Decrypt the encrypted token with GS AES key
-        //Save plaintext token and signature to globals
-        AESDecrypter tokDec = new AESDecrypter(gsAESKey);
-        AESDecrypter sigDec = new AESDecrypter(gsAESKey);
-        tokenBytes = tokDec.decryptBytes(token.getToken());
-        tokenSig = sigDec.decrypt(token.getSignature());
 
-      	if (token == null){
-      		System.out.println("Invalid username");
-      		gc.disconnect();
+        if (token == null){
+            System.out.println("Invalid username");
+            gc.disconnect();
               System.exit(0);
-      	}
+        }
+        
+        
     } else {
     	System.out.println("Unable to connect to GroupServer");
     }
@@ -534,18 +531,7 @@ public class RunUI {
 
                 //Give key to client
                 fc.setAESKey(fsAESKey);
-
-                //Create an EncryptedToken using FS AESKey
-                AESEncrypter tokEnc = new AESEncrypter(fsAESKey);
-                AESEncrypter sigEnc = new AESEncrypter(fsAESKey);
-
-                EncryptedMessage tok = tokEnc.encrypt(tokenBytes);
-                EncryptedMessage sig = sigEnc.encrypt(tokenSig);
-
-                EncryptedToken fsToken = new EncryptedToken(tok, sig);
-
-
-
+                
                 //After the FileServer is connected to and authenticated, connect the FileServer
                 //to the GroupServer to get its public key to verify tokens.
                 boolean fileGroupKeyExchange = fc.getGroupServerKey(groupServerChoice, groupPort);
@@ -558,6 +544,26 @@ public class RunUI {
                 int fileMenuChoice = -1;
                 while(fileMenuChoice != 0){
                     fileMenuChoice = fileMenu();
+
+                    EncryptedMessage tokenP = token.getToken();
+                    EncryptedMessage sigP = token.getSignature();
+
+                    AESDecrypter tokenD = new AESDecrypter(gsAESKey);
+                    AESDecrypter sigD = new AESDecrypter(gsAESKey);
+
+                    byte[] tokenB = tokenD.decryptBytes(tokenP);
+                    byte[] sigB = sigD.decryptBytes(sigP);
+
+                    AESEncrypter tokenE = new AESEncrypter(fsAESKey);
+                    AESEncrypter sigE = new AESEncrypter(fsAESKey);
+
+                    EncryptedMessage tokenM = tokenE.encrypt(tokenB);
+                    EncryptedMessage sigM = sigE.encrypt(sigB);
+                    EncryptedToken fsToken = new EncryptedToken(tokenM, sigM);
+
+                    
+
+
                     String destFile, sourceFile, group, fileName;
                     switch(fileMenuChoice){
                         //Upload a file

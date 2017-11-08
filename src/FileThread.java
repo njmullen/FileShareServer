@@ -141,8 +141,11 @@ public class FileThread extends Thread
 							String remotePath = patDec.decrypt(encPat);
 							String group = groupDec.decrypt(groupPat);
 
-							byte[] tokBytes = tokDec.decryptBytes(encTok.getToken());
-							byte[] sigBytes = sigDec.decryptBytes(encTok.getSignature());
+							EncryptedMessage tokenP = encTok.getToken();
+							EncryptedMessage sigP = encTok.getSignature();
+
+							byte[] tokBytes = tokDec.decryptBytes(tokenP);
+							byte[] sigBytes = sigDec.decryptBytes(sigP);
 
 							if(!verifySig(tokBytes, sigBytes)){
 								System.out.printf("INVALID SIGNATURE!");
