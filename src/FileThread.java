@@ -251,48 +251,63 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
-					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
-					if (sf == null) {
-						System.out.printf("Error: File %s doesn't exist\n", remotePath);
-						e = new Envelope("ERROR_DOESNTEXIST");
-					}
-					else if (!t.getGroups().contains(sf.getGroup())){
-						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
-						e = new Envelope("ERROR_PERMISSION");
-					}
-					else {
+					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
+					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
 
-						try
-						{
+					
+					//Decrypt everything
+					AESDecrypter remDec = new AESDecrypter(AESKey);
+					String remotePath = remDec.decrypt(encRemPat);
+
+					AESDecrypter tokDec = new AESDecrypter(AESKey);
+					byte[] tokenBytes = tokDec.decryptBytes(encTok.getToken());
+
+					AESDecrypter sigDec = new AESDecrypter(AESKey);
+					byte[] sigBytes = sigDec.decryptBytes(encTok.getSignature());
 
 
-							File f = new File("shared_files/"+"_"+remotePath.replace('/', '_'));
-
-							if (!f.exists()) {
-								System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
-								e = new Envelope("ERROR_FILEMISSING");
-							}
-							else if (f.delete()) {
-								System.out.printf("File %s deleted from disk\n", "_"+remotePath.replace('/', '_'));
-								FileServer.fileList.removeFile("/"+remotePath);
-								e = new Envelope("OK");
-							}
-							else {
-								System.out.printf("Error deleting file %s from disk\n", "_"+remotePath.replace('/', '_'));
-								e = new Envelope("ERROR_DELETE");
-							}
-
-
+					if(verifySig(tokenBytes, sigBytes)){
+						Token t = new Token(tokenBytes);
+						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
+						if (sf == null) {
+							System.out.printf("Error: File %s doesn't exist\n", remotePath);
+							e = new Envelope("ERROR_DOESNTEXIST");
 						}
-						catch(Exception e1)
-						{
-							System.err.println("Error: " + e1.getMessage());
-							e1.printStackTrace(System.err);
-							e = new Envelope(e1.getMessage());
+						else if (!t.getGroups().contains(sf.getGroup())){
+							System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
+							e = new Envelope("ERROR_PERMISSION");
+						}
+						else {
+							try
+							{
+								File f = new File("shared_files/"+"_"+remotePath.replace('/', '_'));
+								if (!f.exists()) {
+									System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
+									e = new Envelope("ERROR_FILEMISSING");
+								}
+								else if (f.delete()) {
+									System.out.printf("File %s deleted from disk\n", "_"+remotePath.replace('/', '_'));
+									FileServer.fileList.removeFile("/"+remotePath);
+									e = new Envelope("OK");
+								}
+								else {
+									System.out.printf("Error deleting file %s from disk\n", "_"+remotePath.replace('/', '_'));
+									e = new Envelope("ERROR_DELETE");
+								}
+							}
+							catch(Exception e1)
+							{
+								System.err.println("Error: " + e1.getMessage());
+								e1.printStackTrace(System.err);
+								e = new Envelope(e1.getMessage());
+							}
 						}
 					}
+					else{
+						e = new Envelope("FAIL!! UNABLE TO VERIFY SIGNATURE");
+					}
+
+					
 					output.writeObject(e);
 
 				}
@@ -360,6 +375,24 @@ public class FileThread extends Thread
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace(System.err);
 		}
+	}
+
+	private boolean verifySig(byte[] tokenBytes, byte[] sigBytes){
+		try{
+			Signature signature = Signature.getInstance("RSA");
+			signature.initVerify(groupServerKey);
+			signature.update(tokenBytes);
+			if (signature.verify(sigBytes)){
+				return true;
+			} else {
+				System.exit(0);
+			}
+		}
+		catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return false;
+		
 	}
 
 }

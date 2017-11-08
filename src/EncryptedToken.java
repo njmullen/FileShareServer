@@ -8,4 +8,12 @@ public class EncryptedToken implements java.io.Serializable{
 		this.token = tokenIn;
 		this.signature = signatureIn;
 	}
+
+	public EncryptedMessage getToken(){
+		return token;
+	}
+
+	public EncryptedMessage getSignature(){
+		return signature;
+	}
 }

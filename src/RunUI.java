@@ -26,7 +26,11 @@ public class RunUI {
     Scanner scan = new Scanner(System.in);
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
+    
     EncryptedToken token = null;
+    byte[] tokenBytes = null;
+    String tokenSig = null;
+
     String username = null;
     
 
@@ -242,6 +246,14 @@ public class RunUI {
         //If the username doesn't exist, throw invalid username, though this would have
         //said invalid password and kicked user out before this is reached
       	token = gc.getToken(username);
+        
+        //Decrypt the encrypted token with GS AES key
+        //Save plaintext token and signature to globals
+        AESDecrypter tokDec = new AESDecrypter(gsAESKey);
+        AESDecrypter sigDec = new AESDecrypter(gsAESKey);
+        tokenBytes = tokDec.decryptBytes(token.getToken());
+        tokenSig = sigDec.decrypt(token.getSignature());
+
       	if (token == null){
       		System.out.println("Invalid username");
       		gc.disconnect();
@@ -520,8 +532,15 @@ public class RunUI {
                 //Give key to client
                 fc.setAESKey(fsAESKey);
 
-                //Create AESEncrypters that can hold state
-                AESEncrypter fsEncptr = new AESEncrypter(fsAESKey);
+                //Create an EncryptedToken using FS AESKey
+                AESEncrypter tokEnc = new AESEncrypter(fsAESKey);
+                AESEncrypter sigEnc = new AESEncrypter(fsAESKey);
+
+                EncryptedMessage tok = tokEnc.encrypt(tokenBytes);
+                EncryptedMessage sig = sigEnc.encrypt(tokenSig);
+
+                EncryptedToken fsToken = new EncryptedToken(tok, sig);
+
 
 
                 //After the FileServer is connected to and authenticated, connect the FileServer
@@ -547,7 +566,7 @@ public class RunUI {
                             destFile = scan.next();
                             System.out.println("Enter the name of the group to which this file should be added:  ");
                             group = scan.next();
-                            if(fc.upload(sourceFile, destFile, group, token)){
+                            if(fc.upload(sourceFile, destFile, group, fsToken)){
                                 System.out.println(sourceFile + " successfully uploaded as " + destFile + " in group " + group);
                             }
                             else{
@@ -561,7 +580,7 @@ public class RunUI {
                             sourceFile = scan.next();
                             System.out.println("Enter the name of the local destination file: ");
                             destFile = scan.next();
-                            if(fc.download(sourceFile, destFile, token)){
+                            if(fc.download(sourceFile, destFile, fsToken)){
                                 System.out.println(sourceFile + " succesfully downloaded as " + destFile);
                             }
                             else{
@@ -573,7 +592,7 @@ public class RunUI {
                             System.out.println("Delete a file");
                             System.out.println("Enter the name of the file to be deleted");
                             fileName = scan.next();
-                            if(fc.delete(fileName, token)){
+                            if(fc.delete(fileName, fsToken)){
                                 System.out.println(fileName + " succesfully deleted");
                             }
                             else{
@@ -583,7 +602,7 @@ public class RunUI {
                         //List all files available to that user
                         case 4:
                             System.out.println("List all files");
-                            List<String> files = fc.listFiles(token);
+                            List<String> files = fc.listFiles(fsToken);
                             if(files != null){
                                 int count = files.size();
                                 System.out.println(count + " files available");
@@ -611,11 +630,6 @@ public class RunUI {
         }
     }
 
-  }
-
-  //Return FS AES key
-  public static Key getFSKey(){
-    return fsAESKey;
   }
 
   /*
