@@ -1,0 +1,37 @@
+//Diffie
+ssh rfc for diffie hellman
+sentence or 2 why its safe to use our p and g
+
+//2nd diagram
+change [] to curly
+change g to be G in pub key
+
+may have to do signed diffie for next phase to mitigate man in the middle
+
+//string serializing
+make sure we delimit groups/disallow pipes. Need to put this in doc how we're doing.
+Tokens that are identical can be the same.
+Make sure we convince him that this can't be messed
+
+//FileServer
+change document to reflect that key is genned on boot
+
+//Graph
+Vulnerable to man in the middle
+Change graph to one graph and show how the diff parts interact
+
+
+//TODO @ 14:05
+
+//Document
+> Define our diffie g and q in the document
+> Augment our diagrams
+  > Make our diffie into one document for file/groupserver
+x Add to document how we will serialize tokens better
+x Add sentence that file server automatically gen's key on boot.
+
+//Implementation
+> Diffie Hellman for file server/AES auth
+> Bug Test
+> Test Upload/Download/all Operations
+> Encrypt all operations
