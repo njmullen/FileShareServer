@@ -36,7 +36,6 @@ The session key is a 128-bit AES key operating in GCM mode which will, by the de
 
 First, the Client will authenticated the server by sending an ID verification request. The server will return its public key and the Client will compare that against a list of trusted servers it has connected to in the past. If this is the first connection to a server, it will verify the public key of the GS with the displayed public key via an admin. If the key is verified, the Client will encrypt a challenge with the server’s public key and send that to the server. The challenge is a 1024-bit randomly generated BigInteger, which is a large enough random integer to guard against a possibly replay attack. The client will also send g, a D-H generator, and q, the modulus for the D-H exchange. The DH generator is defined by our Cryptographic Provider BouncyCastle which is assumed will be highly secure. The server will return the random challenge, verifying its identity as it has decrypted the challenge with its private key, with its part of the D-H exchange. The client will use that to compute the shared key, K, and send its part of the D-H exchange back to the server. Now, both parties are in possession of the shared key K.
 
-
 		     
 
 
