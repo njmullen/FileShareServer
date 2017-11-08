@@ -19,7 +19,8 @@ import org.bouncycastle.util.encoders.Hex;
 
 public class FileClient extends Client implements FileClientInterface {
 
-	PublicKey groupServerKey;
+	private PublicKey groupServerKey = null;
+	private AESDecrypter aes = null;
 
 	public boolean getGroupServerKey(String server, int port){
 		GroupClient gc = new GroupClient();
@@ -110,6 +111,11 @@ public class FileClient extends Client implements FileClientInterface {
 		else {
 			remotePath = filename;
 		}
+
+		//Encrypt
+
+
+
 		Envelope env = new Envelope("DELETEF"); //Success
 	    env.addObject(remotePath);
 	    env.addObject(token);
@@ -318,6 +324,31 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 		 return true;
 	}
+
+	//Diffie-Hellman exchange to create shared AES session key
+	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
+	 	try{
+	 		Envelope message = null, response = null;
+	 		message = new Envelope("DH");
+		 	message.addObject(p);
+		 	message.addObject(g);
+		 	message.addObject(C);
+
+		 	output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("OK")){
+				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				return S;
+			}
+			return null;
+	 	} catch (Exception ex){
+	 		ex.printStackTrace();
+	 	}
+	 	
+	 	return null;
+	 }
+
 
 }
 
