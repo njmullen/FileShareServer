@@ -28,7 +28,7 @@ public class RunUI {
     FileClient fc = new FileClient();
     EncryptedToken token = null;
     String username = null;
-    
+
 
     Security.addProvider(new BouncyCastleProvider());
 
@@ -294,7 +294,7 @@ public class RunUI {
                         } else {
                             System.out.println("Error! Unable to add " + newUsername);
                         }
-                      
+
                         break;
                     //Delete a user
                     case 2:
@@ -307,7 +307,7 @@ public class RunUI {
                         } else {
                             System.out.println("Error! Unable to delete " + deletedUsername);
                         }
-                    
+
                         break;
                     //Create a group
                     case 3:
