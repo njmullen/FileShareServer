@@ -436,6 +436,11 @@ public class GroupThread extends Thread
 		}
 	}
 
+	private boolean verifySignature(byte[] token, byte[] signature){
+		
+		return false;
+	}
+
 	private boolean checkPassword(String username, byte[] password){
 		if (my_gs.userList.checkUser(username)){
 			byte[] retrievedPassword = my_gs.userList.getPassword(username);

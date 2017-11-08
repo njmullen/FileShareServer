@@ -25,6 +25,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private AESDecrypter aes = null;
 	private String startNonce = null;
 	private PublicKey groupKey = null;
+	private byte[] tokenBytes = null;
+	private byte[] signBytes = null;
 
 	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
 		Envelope message = null;
@@ -132,8 +134,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
 
-	 			byte[] tokenBytes = tokenDecr.decryptBytes(tokenIn);
-	 			byte[] signBytes = signDecr.decryptBytes(signIn);
+	 			tokenBytes = tokenDecr.decryptBytes(tokenIn);
+	 			signBytes = signDecr.decryptBytes(signIn);
 
 	 			Signature signature = Signature.getInstance("RSA");
 	 			signature.initVerify(groupKey);
@@ -193,6 +195,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 				}
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
+
+				if(!Arrays.equals(token.getTokenString(), tokenBytes)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
 				message.addObject(username); //Add user name string
 				message.addObject(passwordHash);
 				message.addObject(token); //Add the requester's token
