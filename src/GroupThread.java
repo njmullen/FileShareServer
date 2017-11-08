@@ -352,7 +352,7 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									if(message.getObjContents().get(2) != null)
+									if(message.getObjContents().get(3) != null)
 									{
 										EncryptedMessage usernameToAdd = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 										EncryptedMessage groupToAdd = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
@@ -363,9 +363,11 @@ public class GroupThread extends Thread
 											System.out.println("Token error");
 											System.exit(0);
 										}
+										
 										AESDecrypter usernameDecr = new AESDecrypter(AESKey);
 										AESDecrypter groupDecr = new AESDecrypter(AESKey);
 										AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+
 										String userPlain = usernameDecr.decrypt(usernameToAdd);
 										String groupPlain = groupDecr.decrypt(groupToAdd);
 										byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);

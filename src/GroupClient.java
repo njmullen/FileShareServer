@@ -427,7 +427,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
 
 				AESEncrypter groupEnc = new AESEncrypter(AESKey);
-				EncryptedMessage groupEncrypted = usernameEnc.encrypt(groupname);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
 
 				EncryptedMessage tokenIn = token.getToken();
 				EncryptedMessage signIn = token.getSignature();
@@ -435,9 +435,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to add a user to the group
 				message = new Envelope("AUSERTOGROUP");
-				message.addObject(usernameEnc); //Add user name string
-				message.addObject(groupEnc); //Add group name string
-				message.addObject(token); //Add requester's token
+				message.addObject(usernameEncrypted); //Add user name string
+				message.addObject(groupEncrypted); //Add group name string
+				message.addObject(tokenIn); //Add requester's token
 				message.addObject(signIn); //Add requester's token
 				output.writeObject(message);
 
