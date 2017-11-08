@@ -256,7 +256,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				EncryptedMessage tokenIn = token.getToken();
 				EncryptedMessage signIn = token.getSignature();
 
-				message.addObject(usernameEnc); //Add user name
+				message.addObject(usernameEncrypted); //Add user name
 				message.addObject(tokenIn);  //Add requester's token
 				message.addObject(signIn);
 				output.writeObject(message);
@@ -286,8 +286,21 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to create a group
 				message = new Envelope("CGROUP");
-				message.addObject(groupname); //Add the group name string
-				message.addObject(token); //Add the requester's token
+
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(groupEncrypted); //Add the group name string
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -315,10 +328,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 				Envelope message = null, response = null;
 				//Tell the server to delete a group
 				message = new Envelope("DGROUP");
-				message.addObject(groupname); //Add group name string
-				message.addObject(token); //Add requester's token
-				output.writeObject(message);
 
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = groupEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
+				message.addObject(groupEncrypted); //Add the group name string
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
+				output.writeObject(message);
+			
 				response = (Envelope)input.readObject();
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))

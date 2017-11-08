@@ -225,10 +225,22 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
 
-								if(createGroup(groupName, yourToken))
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+
+								AESDecrypter groupDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String groupPlain = groupDecr.decrypt(groupName);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								if(createGroup(groupPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -252,10 +264,22 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupToDelete = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
+								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
 
-								if(deleteGroup(groupToDelete, yourToken))
+								if(!verifySignature(tokenIn, signIn)){
+									System.out.println("Token error");
+									System.exit(0);
+								}
+
+								AESDecrypter groupDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String groupPlain = groupDecr.decrypt(groupName);
+								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+								Token yourToken = new Token(tokenPlain);
+
+								if(deleteGroup(groupPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
