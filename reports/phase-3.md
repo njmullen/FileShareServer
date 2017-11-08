@@ -41,7 +41,7 @@ First, the Client will authenticated the server by sending an ID verification re
 
 		     
 
-
+#### T1 Diagram 1
 
 
 
@@ -56,7 +56,7 @@ First, the Client will authenticated the server by sending an ID verification re
 After the key exchange has taken place, the server will then authenticate the client using a username and password, then issue the Client a Token. The Token signing procedure is explained in further detail in T2. 
 
 
-
+#### T1 Diagram 2
 
 ### Solution Reasoning
 
@@ -84,11 +84,12 @@ Both the FileServer and GroupServer will require the signed Token for every acce
 When the user has been authenticated, the GroupServer will generate a Token, then pass the Token and signature to the user as in the following diagram.
 
 
-
+### T2 Diagram 1
 
 
 After the Token has been issued to the user, the user must pass the Token and the Token signature to either the GroupServer and the FileServer for each operation the user wishes to complete. The server will check the Token signature using the GroupServer’s public key, then permit or deny the operation based on the validity of the signature, and the permissions contained in the Token.
 
+#### T2 Diagram 2
 
 
 ### Correctness
