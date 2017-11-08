@@ -25,6 +25,11 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private AESDecrypter aes = null;
 	private String startNonce = null;
 	private PublicKey groupKey = null;
+	private byte[] tokenBytes = null;
+	private byte[] signBytes = null;
+	private EncryptedToken tokenObj = null;
+	private EncryptedMessage signIn = null;
+	private EncryptedMessage tokenIn = null;
 
 	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
 		Envelope message = null;
@@ -110,7 +115,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		this.AESKey = AESKeys;
 	}
 
-	 public UserToken getToken(String username){
+	 public EncryptedToken getToken(String username){
 	 	try{
 	 		Envelope message = null;
 	 		Envelope response = null;
@@ -118,32 +123,32 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 		message = new Envelope("GET");
 	 		//Encrypt the username and send it
-	 		AESEncrypter aesUsername = new AESEncrypter(AESKey);
-	 		EncryptedMessage encryptedUser = aesUsername.encrypt(username);
-	 		message.addObject(encryptedUser);
+	 		AESEncrypter encrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage usernameToSend = encrypter.encrypt(username);
+	 		message.addObject(usernameToSend);
+	 		output.writeObject(message);
 
+	 		//Get back the token and signature
 	 		response = (Envelope)input.readObject();
 	 		if(response.getMessage().equals("OK")){
-	 			EncryptedMessage tokenEnc = (EncryptedMessage)response.getObjContents().get(0);
-	 			EncryptedMessage signEnc = (EncryptedMessage)response.getObjContents().get(1);
-	 			
-	 			AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
-	 			AESDecrypter signDecrypter = new AESDecrypter(AESKey);
+	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
+	 			EncryptedMessage tokenIn = tokenObj.token;
+	 			EncryptedMessage signIn = tokenObj.signature;
 
-	 			byte[] tokenBytes = tokenDecrypter.decryptBytes(tokenEnc);
-	 			byte[] tokenSig = signDecrypter.decryptBytes(signEnc);
+	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
+
+	 			tokenBytes = tokenDecr.decryptBytes(tokenIn);
+	 			signBytes = signDecr.decryptBytes(signIn);
 
 	 			Signature signature = Signature.getInstance("RSA");
-		 		signature.initVerify(groupKey);
-	            signature.update(tokenBytes);
-	            boolean signaturePass = signature.verify(tokenSig);
-	            if (!signaturePass){
-	                System.out.println("Token not able to be verified");
-	                System.exit(0);
-	            }
-
-	            Token token = new Token(tokenBytes);
-	            return token;
+	 			signature.initVerify(groupKey);
+	 			signature.update(tokenBytes);
+	 			if (signature.verify(signBytes)){
+	 				return tokenObj;
+	 			} else {
+	 				System.exit(0);
+	 			}
 	 		}
 
 	 	} catch(Exception ex){
@@ -178,7 +183,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	return null;
 	 }
 
-	 public boolean createUser(String username, String password, UserToken token)
+	 public boolean createUser(String username, String password, EncryptedToken token)
 	 {
 		 try
 			{
@@ -193,9 +198,18 @@ public class GroupClient extends Client implements GroupClientInterface {
 				}
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
-				message.addObject(username); //Add user name string
-				message.addObject(passwordHash);
-				message.addObject(token); //Add the requester's token
+
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
+
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
+
+				message.addObject(usernameEncrypted); //Add user name string
+				message.addObject(passwordEncrypted);
+				message.addObject(tokenIn); //Add the requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -216,16 +230,22 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 
-	 public boolean deleteUser(String username, UserToken token)
+	 public boolean deleteUser(String username, EncryptedToken token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 
+
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
-				message.addObject(username); //Add user name
-				message.addObject(token);  //Add requester's token
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+
+				message.addObject(usernameEnc); //Add user name
+				message.addObject(tokenIn);  //Add requester's token
+				message.addObject(signIn);
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
@@ -246,7 +266,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 
-	 public boolean createGroup(String groupname, UserToken token)
+	 public boolean createGroup(String groupname, EncryptedToken token)
 	 {
 		 try
 			{
@@ -275,7 +295,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 
-	 public boolean deleteGroup(String groupname, UserToken token)
+	 public boolean deleteGroup(String groupname, EncryptedToken token)
 	 {
 		 try
 			{
@@ -304,7 +324,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 }
 
 	 @SuppressWarnings("unchecked")
-	public List<String> listMembers(String group, UserToken token)
+	public List<String> listMembers(String group, EncryptedToken token)
 	 {
 		 try
 		 {
@@ -334,7 +354,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 
-	 public boolean addUserToGroup(String username, String groupname, UserToken token)
+	 public boolean addUserToGroup(String username, String groupname, EncryptedToken token)
 	 {
 		 try
 			{
@@ -363,7 +383,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 
-	 public boolean deleteUserFromGroup(String username, String groupname, UserToken token)
+	 public boolean deleteUserFromGroup(String username, String groupname, EncryptedToken token)
 	 {
 		 try
 			{
