@@ -72,8 +72,14 @@ public class GroupThread extends Thread
 
 			do
 			{
-				Envelope message = (Envelope)input.readObject();
-				System.out.println("Request received: " + message.getMessage());
+				Envelope message = null;
+				try {
+					message = (Envelope)input.readObject();
+					System.out.println("Request received: " + message.getMessage());
+				} catch(EOFException e) {
+					System.out.println("A User Disconnected");
+					break;
+				}
 				Envelope response;
 
 				if(message.getMessage().equals("GET"))//Client wants a token
@@ -318,17 +324,24 @@ public class GroupThread extends Thread
 								byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
 								Token yourToken = new Token(tokenPlain);
 
+								/////poop
+
 								List<String> members = listMembers(groupPlain, yourToken);
-								int membersize = members.size();
+								if(members != null) {
+									int membersize = members.size();
 
-								response = new Envelope("OK"); //Success
-								response.addObject(membersize);
+									response = new Envelope("OK"); //Success
+									response.addObject(membersize);
 
-								for(int i = 0; i < members.size(); i++){
-									AESEncrypter listEncr = new AESEncrypter(AESKey);
-									EncryptedMessage listEncrd = listEncr.encrypt(members.get(i));
-									response.addObject(listEncrd);
+									for(int i = 0; i < members.size(); i++){
+										AESEncrypter listEncr = new AESEncrypter(AESKey);
+										EncryptedMessage listEncrd = listEncr.encrypt(members.get(i));
+										response.addObject(listEncrd);
+									}
+								} else {
+									response = new Envelope("FAIL");
 								}
+
 
 							}
 						}
@@ -363,7 +376,7 @@ public class GroupThread extends Thread
 											System.out.println("Token error");
 											System.exit(0);
 										}
-										
+
 										AESDecrypter usernameDecr = new AESDecrypter(AESKey);
 										AESDecrypter groupDecr = new AESDecrypter(AESKey);
 										AESDecrypter tokenDecr = new AESDecrypter(AESKey);
