@@ -21,6 +21,11 @@ public class FileClient extends Client implements FileClientInterface {
 
 	private PublicKey groupServerKey = null;
 	private AESDecrypter aes = null;
+	private Key AESKey = null;
+
+	public void setAESKey(Key key){
+		AESKey = key;
+	}
 
 	public boolean getGroupServerKey(String server, int port){
 		GroupClient gc = new GroupClient();
@@ -131,7 +136,12 @@ public class FileClient extends Client implements FileClientInterface {
 		}
 
 		//Encrypt
+		AESEncrypter fileEnc = new AESEncrypter(AESKey);
+		AESEncrypter tokenEnc = new AESEncrypter(AESKey);
 
+		//Encrypt filename and token and send to server
+		EncryptedMessage encryptedFile = fileEnc.encrypt(remotePath);
+		EncryptedMessage encryptedToken = tokenEnc.encrypt(token.getTokenString());
 
 
 		Envelope env = new Envelope("DELETEF"); //Success
