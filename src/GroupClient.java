@@ -203,10 +203,14 @@ public class GroupClient extends Client implements GroupClientInterface {
 					System.exit(0);
 				}
 
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
 
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
 
-				message.addObject(username); //Add user name string
-				message.addObject(passwordHash);
+				message.addObject(usernameEncrypted); //Add user name string
+				message.addObject(passwordEncrypted);
 				message.addObject(tokenIn); //Add the requester's token
 				message.addObject(signIn);
 				output.writeObject(message);

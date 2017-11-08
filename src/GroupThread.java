@@ -142,11 +142,27 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								byte[] password = (byte[])message.getObjContents().get(1);
-								UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+								EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
+								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
+								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(3);
 
-								if(createUser(username, password, yourToken))
+								if(!verifySignature(token, tokenSignature)){
+									System.out.println("Invalid signature");
+									System.exit(0);
+								}
+
+								AESDecrypter usernameDecr = new AESDecrypter(AESKey);
+								AESDecrypter passwordDecr = new AESDecrypter(AESKey);
+								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+								String usernamePlain = usernameDecr.decrypt(username);
+								byte[] passwordPlain = passwordDecr.decryptBytes(password);
+								byte[] tokenPlain = tokenDecr.decryptBytes(token);
+
+								Token yourToken = new Token(tokenPlain);
+
+
+								if(createUser(usernamePlain, passwordPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -436,8 +452,22 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean verifySignature(byte[] token, byte[] signature){
-		
+	private boolean verifySignature(EncryptedMessage token, EncryptedMessage signature){
+		AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
+		AESDecrypter sigDecrypter = new AESDecrypter(AESKey);
+
+		byte[] tokenBytes = tokenDecrypter.decryptBytes(token);
+		byte[] sigBytes = sigDecrypter.decryptBytes(signature);
+
+		try{
+			Signature signaturev = Signature.getInstance("RSA");
+			signaturev.initVerify(publicKey);
+			signaturev.update(tokenBytes);
+			return signaturev.verify(sigBytes);
+		} catch(Exception sigex){
+			sigex.printStackTrace();
+		}
+		 
 		return false;
 	}
 
