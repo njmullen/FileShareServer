@@ -26,7 +26,7 @@ public class RunUI {
     Scanner scan = new Scanner(System.in);
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
-    UserToken token = null;
+    EncryptedToken token = null;
     String username = null;
     
 
@@ -286,15 +286,12 @@ public class RunUI {
                         System.out.println("Set a password for that user: ");
                         String password = checkForPipe(scan);
                         //Checks that current logged in user is an admin, if not, forbids the operation
-                        if(token.getGroups().contains("ADMIN")){
-                            if(gc.createUser(newUsername, password, token)){
-                                System.out.println(newUsername + " added succesfully!");
-                            } else {
-                                System.out.println("Error! Unable to add " + newUsername);
-                            }
+                        if(gc.createUser(newUsername, password, token)){
+                            System.out.println(newUsername + " added succesfully!");
                         } else {
-                            System.out.println("Unable to create user; insufficient permissions");
+                            System.out.println("Error! Unable to add " + newUsername);
                         }
+                      
                         break;
                     //Delete a user
                     case 2:
@@ -302,15 +299,12 @@ public class RunUI {
                         System.out.println("Enter username to be deleted: ");
                         String deletedUsername = scan.next();
                         //Checks that current logged in user is an admin, if not, forbids the operation
-                        if(token.getGroups().contains("ADMIN")){
-                            if(gc.deleteUser(deletedUsername, token)){
-                                System.out.println(deletedUsername + " deleted succesfully!");
-                            } else {
-                                System.out.println("Error! Unable to delete " + deletedUsername);
-                            }
+                        if(gc.deleteUser(deletedUsername, token)){
+                            System.out.println(deletedUsername + " deleted succesfully!");
                         } else {
-                            System.out.println("Unable to delete user; insufficient permissions");
+                            System.out.println("Error! Unable to delete " + deletedUsername);
                         }
+                    
                         break;
                     //Create a group
                     case 3:
