@@ -178,7 +178,10 @@ public class FileClient extends Client implements FileClientInterface {
 					    FileOutputStream fos = new FileOutputStream(file);
 					    
 					    Envelope env = new Envelope("DOWNLOADF"); //Success
-					    env.addObject(sourceFile);
+
+					    AESEncrypter fileEnc = new AESEncrypter(AESKey);
+					    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
+					    env.addObject(sourceEnc);
 					    env.addObject(token);
 					    output.writeObject(env); 
 					
@@ -236,11 +239,20 @@ public class FileClient extends Client implements FileClientInterface {
 			 output.writeObject(message); 
 			 
 			 e = (Envelope)input.readObject();
-			 
+
+
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
 			 { 
-				return (List<String>)e.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				int size = (int)e.getObjContents().get(0);
+				List<String> fileList = new ArrayList<String>();
+				for(int i = 1; i < size + 1; i++){
+			 		EncryptedMessage encList = (EncryptedMessage)e.getObjContents().get(i);
+			 		AESDecrypter listDecr = new AESDecrypter(AESKey);
+			 		String thisMember = listDecr.decrypt(encList);
+			 		fileList.add(thisMember);
+			 	}
+			 	return fileList;
 			 }
 				
 			 return null;
