@@ -143,10 +143,9 @@ public class FileClient extends Client implements FileClientInterface {
 		EncryptedMessage encryptedFile = fileEnc.encrypt(remotePath);
 		EncryptedMessage encryptedToken = tokenEnc.encrypt(token.getTokenString());
 
-
 		Envelope env = new Envelope("DELETEF"); //Success
-	    env.addObject(remotePath);
-	    env.addObject(token);
+	    env.addObject(encryptedFile);
+	    env.addObject(encryptedToken);
 	    try {
 			output.writeObject(env);
 		    env = (Envelope)input.readObject();

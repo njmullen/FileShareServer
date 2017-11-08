@@ -30,6 +30,7 @@ public class FileThread extends Thread
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
 	private PublicKey groupServerKey = null;
+	private AESDecrypter aesDec = null;
 
 	public FileThread(Socket _socket)
 	{
@@ -150,8 +151,18 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					aesDec = new AESDecrypter(AESKey);
+
+					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
+					EncryptedMessage encTok = (EncryptedMessage)e.getObjContents().get(1);
+
+					byte[] tokBytes = aesDec.decryptBytes(encTok);
+					String remotePath = aesDec.decrypt(encRemPat);
+
+					Token t = new Token(tokBytes);
+					
+
+					
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
