@@ -523,6 +523,9 @@ public class RunUI {
                     ex.printStackTrace();
                 }
 
+                //Give key to client
+                fc.setAESKey(fsAESKey);
+
                 //Create AESEncrypters that can hold state
                 AESEncrypter fsEncptr = new AESEncrypter(fsAESKey);
 
@@ -614,6 +617,11 @@ public class RunUI {
         }
     }
 
+  }
+
+  //Return FS AES key
+  public static Key getFSKey(){
+    return fsAESKey;
   }
 
   /*
