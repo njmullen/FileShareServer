@@ -233,8 +233,11 @@ public class RunUI {
             passwordEntry = scan.next();
             passwordAttempts++;
 
-            encryptedUser = aesUsername.encrypt(username);
-            encryptedPass = aesPassword.encrypt(passwordEntry);
+            AESEncrypter aesUsernamePrime = new AESEncrypter(gsAESKey);
+            AESEncrypter aesPasswordPrime = new AESEncrypter(gsAESKey);
+
+            encryptedUser = aesUsernamePrime.encrypt(username);
+            encryptedPass = aesPasswordPrime.encrypt(passwordEntry);
         }
         //Denies entry if more than 5 attempts were made
         if(passwordAttempts > 5){
