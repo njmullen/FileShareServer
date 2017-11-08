@@ -1,6 +1,6 @@
-#### Project: Phase 3
-### Conor Lamb, Nick Mullen, Riley Marzka
-## Introduction
+# Project: Phase 3
+## Conor Lamb, Nick Mullen, Riley Marzka
+### Introduction
 
 To protect against the threats detailed in this phase of the project, we chose to apply several ideas to securing our system. First, all communication in the system will be encrypted with symmetric shared keys, exchanged using a Diffie-Hellman protocol. We chose Diffie-Hellman due to the fact that it involves 2 parties in the creation of a secret as well as provides confidentiality of said secret over a public channel. The Diffie-Hellman keys will be 1024-bit, which is sufficient to generate secure keys reasonably quickly.1 The keys will be generated randomly using a p and g that are randomly generated each time. The symmetric keys will be 128-bit AES keys in GCM mode. 128-bit AES provides ample security, integrity, and fast, efficient operations.2 Our AES cipher will be implemented in the GCM because it is an efficient block chaining mode and also utilizes GMAC for integrity. These symmetric keys (session keys) will be exchanged in two places: between the client and the GroupServer (Kcg) and between the client and the FileServer (Kcf). Exchanging session keys on each connection guarantees that the session keys are not reused, which maintains forward secrecy because if a session key is compromised, only information from one session is insecure. 
 
@@ -12,11 +12,11 @@ Our system protects against the four threat models by establishing connections i
 
 ## T1: Unauthorized Token Issuance
 
-# Threat Description 
+### Threat Description 
 
 To carry out any actions on our file sharing system, a user needs to have a token which contains his or her own group permissions for file sharing actions. With each action both, the group and individual file servers, check the user’s supplied token to authenticate that a user is allowed to take said action. Our file sharing system relies on these token checks to grant permissions for each connected user, thus it is of utmost importance for the entity (our group server) that distributes tokens to users, always allocates the correct token (permissions) to the specific user who owns that token. A token mistakenly or insecurely obtained by a different user than the proper owner will grant improper user privileges to see, steal, and manipulate another user’s confidential files as well as the possibility of modifying or deleting their group’s status. In our former build, we implement a very weak form of authentication as well as transmit tokens without integrity or confidentiality. Our user authentication only asks for the name of a user before logging them in (authenticating them). This means that solely knowing a username (visible publicly to all peers in a group), grants anyone who knows the username the ability to log in as that user. Upon receiving a correct username, our build will then insecurely (in plaintext on a public channel without an integrity check) transmit the usertoken to the user. This means that an adversary can see the token and 1. Know all about a user’s permissions. 2. Take a user’s user token and impersonate them in our system 3. Manipulate the token that was sent to the user.
 
-# Solutions
+### Solutions
 
 The group server, which allocates the tokens to users initially logging in, must authenticate that a user is the proper owner of that token and that the token is securely transmitted to them to avoid an adversary having access to a token he or she does not own.
 
@@ -53,7 +53,7 @@ After the key exchange has taken place, the server will then authenticate the cl
 
 
 
-# Solution Reasoning
+### Solution Reasoning
 
 We believe that our system aptly mitigates the risks associated with Unauthorized Token Issuance because at each step, confidentiality, integrity, and availability are aptly covered in accordance with contemporary information security standards.
 
@@ -64,11 +64,11 @@ The authentication process is also protected from passive and active attacks bas
 
 ## T2: Token Modification/Forgery
 
-# Threat Description
+### Threat Description
 
 If a token is modified by a user, they can increase their access rights and violate established permissions. A modified token could allow an unauthorized user to add themselves to groups they aren’t members of and upload and download files they otherwise wouldn’t have access to. Modified tokens could also allow a user to make themselves the owner of a group, giving them the ability to add or delete users from groups, or entire groups themselves.
 
-# Mechanism
+### Mechanism
 
 To implement protection against token forgery, we can modify our GroupServer such that after it has exchanged and agreed on a symmetric key with the client, it will use that shared symmetric key between the GroupServer and the client to pass the user’s token, as well as a Token signature, which has been generated using the GroupServer's private key. The public/private keypair for the GroupServer is 2048-bit RSA which is sufficient for security against brute-force attacks, and efficient enough to complete operations quickly. The key exchange for the symmetric key and the symmetric key itself is described in further detail in T1.
 
@@ -86,7 +86,7 @@ After the Token has been issued to the user, the user must pass the Token and th
 
 
 
-# Correctness
+### Correctness
 
 This method of ensuring against token forgery is correct with a few assumptions:
 
@@ -100,11 +100,11 @@ Requiring the Token signature to be verified on each access ensures that every a
 
 ## T3: Unauthorized File Servers 
 
-# Threat Description 
+### Threat Description 
 
 Our trust model assumes that properly authenticated file servers are guaranteed to behave as expected. This trust model does not guarantee anything in regards to unauthenticated file servers. An unauthenticated file server may behave unexpectedly or maliciously when handling files, user tokens, etc. For example, an unauthenticated file server may corrupt files within the system. Beyond benign confidentiality and integrity concerns regarding file contents, an adversary could exploit this threat by corrupting files in such a way as to corrupt a user’s machine or even corrupt the entire system. An unauthenticated file server could also be used to leak files to unauthorized users or other entities outside the scope of the system. Finally, an adversary could use an unauthenticated server to steal, view, and modify users tokens. The threats posed by a breach in token integrity has been discussed in previous sections.
 
-# Mechanism
+### Mechanism
 
 To protect against the threat of malicious file servers, our system must ensure that if a user attempts to contact a file server s, that they actually connect to s and not some other server s’. To accomplish this goal, our system will utilize public key authentication to verify the identity of the server to the user. 
 
@@ -123,7 +123,7 @@ Once the files server has been authenticated, the user and the FileServer will e
 
 See the first diagram from T1 for a visual description of this authentication/key exchange protocol. 
 
-# Correctness
+### Correctness
 
 Our mechanism for addressing the threat of Unauthorized File Servers sufficiently mitigates the threat with a few assumptions:
 No entity outside the file server has access to its private key
@@ -134,27 +134,27 @@ The server can safely send its public key to the user over an insecure public ch
 
 ## T4: Information Leakage via Passive Monitoring
 
-# Threat Description
+### Threat Description
 
 Our trust model assumes the existence of passive monitoring, and thus all communications need to be hidden from outside observers. Outside observers could discover the contents being communicated during a session, and potentially impersonate participants in the system. Encrypting the contents of all communications using AES-GCM for a 128-bit shared session key (exchanged already in T1), ensures that the communications remain private from any observers on the network.
 
-# Mechanism
+### Mechanism
 
 Every communication will be encrypted with an AES session key exchanged with the user in T1. When passing information from the client, the client will encrypt the information using the shared key, K, and then the server will decrypt that content, with K. This ensures that any information transferred over the network can only be read with the session key K.
 
 There are two channels of communication in the system: between the GroupServer and the Client and between the FileServer and the client. For each channel, a shared key will be exchanged using the procedure from T1, after the authenticity of both the server and the client has been established. These keys are established per-session which ensures that they cannot be reused, but also that if a key is compromised, only the information from one individual session will be compromised rather than all communications. Using 128-bit AES-GCM ensures both security and efficiency since AES is both secure and fast, as well as correctness.
 
-# Correctness
+### Correctness
 
 Using the shared symmetric key to encrypt sessions is correct under the assumption that the private key is not intercepted, and that the initial exchange in T1 is successful in that no public/private keys have been compromised. Connecting and authenticating as a user is only as secure as that user’s password, so if the user has a strong password, then it will be nearly impossible for someone to impersonate that user by guessing their password to gain access to the system. 
 
-# Conclusion
+### Conclusion
 
 Throughout the process of designing our system, we attempted to keep the design to be as straightforward as possible. We discussed the performance tradeoffs of hashing certain values, as well as using the GroupServer as a central authentication point, where the GroupServer would check every Token and every access for legitimacy. We ended up selecting things like signing the Tokens, the Diffie-Hellman key exchanges, and hashing for passwords as it keeps the design simple, but secure. We used complete mediation to ensure that every access is checked, to ensure there are no weak points for one to gain access to unauthorized actions, and we used per-session symmetric keys to ensure that if a key is compromised, only the details of one specific session would be compromised. Efficiency and thoroughness guided our design, and we think that our system succeeds in providing robust security using a minimal design to ensure that it is not only quick, but that there are fewer points of failure.
 
 
 
-# Sources
+### Sources
 
 "Imperfect Forward Secrecy: How Diffie-Hellman Fails in Practice" (PDF). Retrieved 30 October 2015.
 "Announcing the ADVANCED ENCRYPTION STANDARD (AES)" (PDF). Federal Information Processing Standards Publication 197. United States National Institute of Standards and Technology (NIST). November 26, 2001. Retrieved October 2, 2012.
