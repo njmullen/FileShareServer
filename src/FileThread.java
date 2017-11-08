@@ -29,6 +29,7 @@ public class FileThread extends Thread
 	private final Socket socket;
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
+	private PublicKey groupServerKey = null;
 
 	public FileThread(Socket _socket)
 	{
@@ -283,6 +284,19 @@ public class FileThread extends Thread
 					}
 					output.writeObject(e);
 
+				}
+
+				//Client wants to send GroupServer key
+				else if (e.getMessage().compareTo("GK") == 0){
+					if(e.getObjContents().size() != 1){
+						response = new Envelope("FAIL-BADCONTENTS");
+					}
+					else{
+						groupServerKey = (PublicKey)e.getObjContents().get(0);
+						response = new Envelope("OK");
+					}
+
+					output.writeObject(response);
 				}
 
 				//Client wants to do DH Exchange

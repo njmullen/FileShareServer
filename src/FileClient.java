@@ -47,7 +47,25 @@ public class FileClient extends Client implements FileClientInterface {
                 gc.disconnect();
                 System.exit(0);
             }
-            return true;
+
+            //Send to FileThread
+            try{
+            	Envelope message = null, response = null;
+            	message = new Envelope("GK");
+            	message.addObject(groupServerKey);
+
+            	output.writeObject(message);
+
+            	response = (Envelope)input.readObject();
+            	if(response.getMessage().equals("OK")){
+            		return true;
+            	}
+            	return false;
+            }
+            catch(Exception ex){
+            	ex.printStackTrace();
+            }
+            return false;
 		} else {
 			System.out.println("GroupServer/FileServer error");
 			System.exit(0);
