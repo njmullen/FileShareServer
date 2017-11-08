@@ -105,7 +105,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		} catch(Exception ex){
 			ex.printStackTrace();
 		}
-		
+
 		return false;
 	}
 
@@ -154,7 +154,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	}
 	 	return null;
 	 }
-	 
+
 	 //Diffie-Hellman exchange to create shared AES session key
 	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
 	 	try{
@@ -177,7 +177,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	} catch (Exception ex){
 	 		ex.printStackTrace();
 	 	}
-	 	
+
 	 	return null;
 	 }
 
@@ -371,12 +371,27 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 {
 		 try
 			{
+				if(!verifyToken(token)){
+					System.out.println("Token error");
+					System.exit(0);
+				}
+
+				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
+				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
+
+				AESEncrypter groupEnc = new AESEncrypter(AESKey);
+				EncryptedMessage groupEncrypted = usernameEnc.encrypt(groupname);
+
+				EncryptedMessage tokenIn = token.getToken();
+				EncryptedMessage signIn = token.getSignature();
+
 				Envelope message = null, response = null;
 				//Tell the server to add a user to the group
 				message = new Envelope("AUSERTOGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
+				message.addObject(usernameEnc); //Add user name string
+				message.addObject(groupEnc); //Add group name string
 				message.addObject(token); //Add requester's token
+				message.addObject(signIn); //Add requester's token
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();

@@ -56,7 +56,7 @@ public class GroupThread extends Thread
 		} catch (Exception ex){
 			ex.printStackTrace();
 		}
-		
+
 	}
 
 	public void run()
@@ -90,7 +90,7 @@ public class GroupThread extends Thread
 					else
 					{
 						UserToken yourToken = createToken(username); //Create a token
-						
+
 						String issuer = yourToken.getIssuer();
 						String subject = yourToken.getSubject();
 						List<String> groupList = yourToken.getGroups();
@@ -285,7 +285,7 @@ public class GroupThread extends Thread
 								List<String> members = listMembers(groupnameToList, yourToken);
 								response = new Envelope("OK"); //Success
 								response.addObject(members);
-								
+
 							}
 						}
 					}
@@ -294,7 +294,7 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
 				{
-				    if(message.getObjContents().size() < 3)
+				    if(message.getObjContents().size() < 4)
 					{
 						response = new Envelope("FAIL");
 					}
@@ -308,13 +308,29 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									String usernameToAdd = (String)message.getObjContents().get(0); //Extract the username
-									String groupnameToAdd = (String)message.getObjContents().get(1); //Extract the groupname
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
-
-									if(addUserToGroup(usernameToAdd, groupnameToAdd, yourToken))
+									if(message.getObjContents().get(2) != null)
 									{
-										response = new Envelope("OK"); //Success
+										EncryptedMessage usernameToAdd = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
+										EncryptedMessage groupToAdd = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
+										EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
+										EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(3); //extract signature
+
+										if(!verifySignature(tokenIn, signIn)){
+											System.out.println("Token error");
+											System.exit(0);
+										}
+										AESDecrypter usernameDecr = new AESDecrypter(AESKey);
+										AESDecrypter groupDecr = new AESDecrypter(AESKey);
+										AESDecrypter tokenDecr = new AESDecrypter(AESKey);
+										String userPlain = usernameDecr.decrypt(usernameToAdd);
+										String groupPlain = groupDecr.decrypt(groupToAdd);
+										byte[] tokenPlain = tokenDecr.decryptBytes(tokenIn);
+										Token yourToken = new Token(tokenPlain);
+
+										if(addUserToGroup(userPlain, groupPlain, yourToken))
+										{
+											response = new Envelope("OK"); //Success
+										}
 									}
 								}
 							}
@@ -478,7 +494,7 @@ public class GroupThread extends Thread
 		} catch(Exception sigex){
 			sigex.printStackTrace();
 		}
-		 
+
 		return false;
 	}
 
@@ -690,7 +706,7 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken){ 
+	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken){
 		String requester = yourToken.getSubject();
 		//Check that token holder and user exist
 		if(my_gs.userList.checkUser(requester) && my_gs.userList.checkUser(username)){
@@ -742,6 +758,6 @@ public class GroupThread extends Thread
 			//Doesn't exist
 			return null;
 		}
-	} 
+	}
 
 }
