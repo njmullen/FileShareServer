@@ -2,7 +2,7 @@
 .DS_Store
 
 #GS
-UserList.Bin
+src/UserList.bin
 src/groupPrivateKey
 src/groupPublicKey
 src/knownServers.txt
