@@ -86,7 +86,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		this.AESKey = AESKeys;
 	}
 
-	 public EncryptedToken getToken(String username){
+	 public EncryptedToken getToken(String username, String fileServer, int filePort){
 	 	try{
 	 		Envelope message = null;
 	 		Envelope response = null;
@@ -94,9 +94,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 		message = new Envelope("GET");
 	 		//Encrypt the username and send it
-	 		AESEncrypter encrypter = new AESEncrypter(AESKey);
-	 		EncryptedMessage usernameToSend = encrypter.encrypt(username);
+	 		AESEncrypter usernameEncrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage usernameToSend = usernameEncrypter.encrypt(username);
+
+	 		AESEncrypter fileServerEncrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage fileServerToSend = fileServerEncrypter.encrypt(fileServer);
+
+	 		String filePortString = Integer.toString(filePort);
+	 		AESEncrypter filePortEncrypter = new AESEncrypter(AESKey);
+	 		EncryptedMessage filePortToSend = filePortEncrypter.encrypt(filePortString);
+
 	 		message.addObject(usernameToSend);
+	 		message.addObject(fileServerToSend);
+	 		message.addObject(filePortToSend);
 	 		output.writeObject(message);
 
 	 		//Get back the token and signature

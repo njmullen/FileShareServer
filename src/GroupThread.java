@@ -87,7 +87,17 @@ public class GroupThread extends Thread
 					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(0); //Get the username
 					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
 					String username = aesDecrypter.decrypt(usernameEnc);
-					if(username == null)
+
+					EncryptedMessage fileServerEnc = (EncryptedMessage)message.getObjContents().get(1); //Get the username
+					AESDecrypter fileServerDecr = new AESDecrypter(AESKey);
+					String fileServer = fileServerDecr.decrypt(fileServerEnc);
+
+					EncryptedMessage filePortEnc = (EncryptedMessage)message.getObjContents().get(2); //Get the username
+					AESDecrypter filePortDecr = new AESDecrypter(AESKey);
+					String filePortString = filePortDecr.decrypt(filePortEnc);
+					int filePort = Integer.parseInt(filePortString);
+
+					if(username == null || fileServer == null)
 					{
 						response = new Envelope("FAIL");
 						response.addObject(null);
@@ -95,18 +105,20 @@ public class GroupThread extends Thread
 					}
 					else
 					{
-						UserToken yourToken = createToken(username); //Create a token
+						UserToken yourToken = createToken(username, fileServer, filePort); //Create a token
 
 						String issuer = yourToken.getIssuer();
 						String subject = yourToken.getSubject();
 						List<String> groupList = yourToken.getGroups();
+						String fileServerT = yourToken.getFileServer();
+						int filePortT = yourToken.getFilePort();
 
 						List<String> newGroupList = new ArrayList<String>();
 						for (int i = 0; i < groupList.size(); i++){
 							newGroupList.add(groupList.get(i));
 						}
 
-						Token token = new Token(issuer, subject, newGroupList);
+						Token token = new Token(issuer, subject, newGroupList, fileServerT, filePortT);
 
 						//Respond to the client. On error, the client will receive a null token
 						response = new Envelope("OK");
@@ -563,13 +575,13 @@ public class GroupThread extends Thread
 	}
 
 	//Method to create tokens
-	private UserToken createToken(String username)
+	private UserToken createToken(String username, String fileServer, int filePort)
 	{
 		//Check that user exists
 		if(my_gs.userList.checkUser(username))
 		{
 			//Issue a new token with server's name, user's name, and user's groups
-			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username), fileServer, filePort);
 			return yourToken;
 		}
 		else
@@ -651,7 +663,7 @@ public class GroupThread extends Thread
 					for(int index = 0; index < deleteOwnedGroup.size(); index++)
 					{
 						//Use the delete group method. Token must be created for this action
-						deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup));
+						deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup, yourToken.getFileServer(), yourToken.getFilePort()));
 					}
 
 					//Delete the user from the user list
@@ -725,7 +737,7 @@ public class GroupThread extends Thread
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
 
-			yourToken = createToken(requester);
+			yourToken = createToken(requester, yourToken.getFileServer(), yourToken.getFilePort());
 
 			List<String> userGroups = yourToken.getGroups();
 

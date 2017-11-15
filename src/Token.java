@@ -7,19 +7,28 @@ public class Token implements UserToken, java.io.Serializable {
   String issuer;
   String userName;
   List<String> groups;
+  String fileServerName;
+  int fileServerPort;
 
-  public Token(String server, String userName, List<String> groups){
+  public Token(String server, String userName, List<String> groups, String serverName, int portNumber){
     issuer = server;
     this.userName = userName;
     this.groups = groups;
+    this.fileServerName = serverName;
+    this.fileServerPort = portNumber;
   }
 
   public Token(byte[] tokenString){
     StringBuilder sb = new StringBuilder();
-    String _issuer = " ", _userName = " ";
+    String _issuer = " ";
+    String _userName = " ";
+    String _fileServer = " ";
+    String _filePort = " ";
     List<String> _groups = new ArrayList<String>();
+
     char c = ' ';
     int numPipe = 0;
+
     for(int i = 0; i < tokenString.length; i++){
       c = (char) tokenString[i];
 
@@ -32,6 +41,14 @@ public class Token implements UserToken, java.io.Serializable {
 
         else if(numPipe == 2){
           _issuer = sb.toString();
+        }
+
+        else if (numPipe == 3){
+          _fileServer = sb.toString();
+        }
+
+        else if (numPipe == 4){
+          _filePort = sb.toString();
         }
 
         else{
@@ -48,6 +65,8 @@ public class Token implements UserToken, java.io.Serializable {
     issuer = _issuer;
     userName = _userName;
     groups = _groups;
+    fileServerName = _fileServer;
+    fileServerPort = Integer.parseInt(_filePort);
   }
 
   /**
@@ -74,6 +93,10 @@ public class Token implements UserToken, java.io.Serializable {
    */
   public String getSubject() {return userName;}
 
+  public String getFileServer() {return fileServerName;}
+
+  public int getFilePort() {return fileServerPort;}
+
 
   /**
    * This method extracts the list of groups that the owner of this
@@ -91,6 +114,10 @@ public class Token implements UserToken, java.io.Serializable {
       sb.append(userName);
       sb.append("|");
       sb.append(issuer);
+      sb.append("|");
+      sb.append(fileServerName);
+      sb.append("|");
+      sb.append(fileServerPort);
       sb.append("|");
       for (int i = 0; i < groups.size(); i++){
         sb.append(groups.get(i));

@@ -48,6 +48,10 @@ public interface UserToken
      */
     public List<String> getGroups();
 
+    public String getFileServer();
+
+    public int getFilePort();
+
     public byte[] getTokenString();
 
 }   //-- end interface UserToken

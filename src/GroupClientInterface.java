@@ -48,7 +48,7 @@ public interface GroupClientInterface
      *         If this user does not exist, a null value will be returned.
      *
      */
-    public EncryptedToken getToken(final String username);
+    public EncryptedToken getToken(final String username, String fileServer, int filePort);
 
 
     /**

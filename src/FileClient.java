@@ -132,67 +132,66 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
-				if (sourceFile.charAt(0)=='/') {
-					sourceFile = sourceFile.substring(1);
-				}
-		
-				File file = new File(destFile);
-			    try {
-			    				
-				
-				    if (!file.exists()) {
-				    	file.createNewFile();
-					    FileOutputStream fos = new FileOutputStream(file);
-					    
-					    Envelope env = new Envelope("DOWNLOADF"); //Success
+		if (sourceFile.charAt(0)=='/') {
+			sourceFile = sourceFile.substring(1);
+		}
 
-					    AESEncrypter fileEnc = new AESEncrypter(AESKey);
-					    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
-					    env.addObject(sourceEnc);
-					    env.addObject(token);
-					    output.writeObject(env); 
-					
-					    env = (Envelope)input.readObject();
-					    
-						while (env.getMessage().compareTo("CHUNK")==0) { 
-								fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
-								System.out.printf(".");
-								env = new Envelope("DOWNLOADF"); //Success
-								output.writeObject(env);
-								env = (Envelope)input.readObject();									
-						}										
-						fos.close();
-						
-					    if(env.getMessage().compareTo("EOF")==0) {
-					    	 fos.close();
-								System.out.printf("\nTransfer successful file %s\n", sourceFile);
-								env = new Envelope("OK"); //Success
-								output.writeObject(env);
-						}
-						else {
-								System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
-								file.delete();
-								return false;								
-						}
-				    }    
-					 
-				    else {
-						System.out.printf("Error couldn't create file %s\n", destFile);
-						return false;
-				    }
-								
-			
-			    } catch (IOException e1) {
-			    	
-			    	System.out.printf("Error couldn't create file %s\n", destFile);
-			    	return false;
+		File file = new File(destFile);
+	    try {
+	    				
+		    if (!file.exists()) {
+		    	file.createNewFile();
+			    FileOutputStream fos = new FileOutputStream(file);
 			    
-					
+			    Envelope env = new Envelope("DOWNLOADF"); //Success
+
+			    AESEncrypter fileEnc = new AESEncrypter(AESKey);
+			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
+			    env.addObject(sourceEnc);
+			    env.addObject(token);
+			    output.writeObject(env); 
+			
+			    env = (Envelope)input.readObject();
+			    
+				while (env.getMessage().compareTo("CHUNK")==0) { 
+						fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
+						System.out.printf(".");
+						env = new Envelope("DOWNLOADF"); //Success
+						output.writeObject(env);
+						env = (Envelope)input.readObject();									
+				}										
+				fos.close();
+				
+			    if(env.getMessage().compareTo("EOF")==0) {
+			    	 fos.close();
+						System.out.printf("\nTransfer successful file %s\n", sourceFile);
+						env = new Envelope("OK"); //Success
+						output.writeObject(env);
 				}
-			    catch (ClassNotFoundException e1) {
-					e1.printStackTrace();
+				else {
+						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
+						file.delete();
+						return false;								
 				}
-				 return true;
+		    }    
+			 
+		    else {
+				System.out.printf("Error couldn't create file %s\n", destFile);
+				return false;
+		    }
+						
+	
+	    } catch (IOException e1) {
+	    	
+	    	System.out.printf("Error couldn't create file %s\n", destFile);
+	    	return false;
+	    
+			
+		}
+	    catch (ClassNotFoundException e1) {
+			e1.printStackTrace();
+		}
+		 return true;
 	}
 
 	@SuppressWarnings("unchecked")

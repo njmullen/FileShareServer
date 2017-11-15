@@ -369,7 +369,7 @@ public class RunUI {
     //If password was entered succesfully, grab the users token.
     //If the username doesn't exist, throw invalid username, though this would have
     //said invalid password and kicked user out before this is reached
-    token = gc.getToken(username);
+    token = gc.getToken(username, fileServerChoice, filePort);
 
     if (token == null){
         System.out.println("Invalid username");
@@ -502,7 +502,7 @@ public class RunUI {
                         break;
                 }
                 //Refresh the user token
-                token = gc.getToken(username);
+                token = gc.getToken(username, fileServerChoice, filePort);
             }
         }
         //FileServer Menu Handling

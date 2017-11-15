@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.*;
 
 import java.security.*;
 import javax.crypto.*;
@@ -30,10 +31,15 @@ public class FileThread extends Thread
 	private BigInteger dhKey = null;
 	private Key AESKey = null;
 	private PublicKey groupServerKey = null;
+	private String serverName = null;
+	private int port = 0;
 
 	public FileThread(Socket _socket)
 	{
 		socket = _socket;
+		serverName = socket.getInetAddress().getHostName();
+		port = socket.getLocalPort();
+		
 	}
 
 	public void run()
@@ -62,6 +68,7 @@ public class FileThread extends Thread
 				    		response = new Envelope("FAIL-BADTOKEN");
 				    	}
 				    	else{
+				    		//Decrypt the Token and verify its signature
 				    		EncryptedToken yourToken = (EncryptedToken)e.getObjContents().get(0);
 
 				    		EncryptedMessage tokenPart = yourToken.getToken();
@@ -79,6 +86,15 @@ public class FileThread extends Thread
 				    		}
 
 				    		Token newToken = new Token(tokenBytes);
+
+				    		//Verify that token is good for this port/server
+				    		String tokenServer = newToken.getFileServer();
+				    		int tokenPort = newToken.getFilePort();
+
+				    		if(!serverName.equals(tokenServer) || port != tokenPort){
+				    			System.out.println("Token invalid for this server");
+				    			System.exit(0);
+				    		}
 
 				    		ArrayList<ShareFile> fullList = new ArrayList<ShareFile>(FileServer.fileList.getFiles()); //Pull full list from file server
 				    		List<String> accessList = new ArrayList<String>(); //Stores names of files which user has access to
@@ -154,6 +170,15 @@ public class FileThread extends Thread
 
 							Token yourToken = new Token(tokBytes);
 
+							//Verify that token is good for this port/server
+				    		String tokenServer = yourToken.getFileServer();
+				    		int tokenPort = yourToken.getFilePort();
+
+				    		if(!serverName.equals(tokenServer) || port != tokenPort){
+				    			System.out.println("Token invalid for this server");
+				    			System.exit(0);
+				    		}
+
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
 								response = new Envelope("FAIL-FILEEXISTS"); //Success
@@ -223,6 +248,15 @@ public class FileThread extends Thread
 					String remotePath = remDec.decrypt(encRemPat);
 
 					Token t = new Token(tokBytes);
+
+					//Verify that token is good for this port/server
+		    		String tokenServer = t.getFileServer();
+		    		int tokenPort = t.getFilePort();
+
+		    		if(!serverName.equals(tokenServer) || port != tokenPort){
+		    			System.out.println("Token invalid for this server");
+		    			System.exit(0);
+		    		}
 					
 					
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
@@ -330,6 +364,15 @@ public class FileThread extends Thread
 
 					if(verifySig(tokenBytes, sigBytes)){
 						Token t = new Token(tokenBytes);
+						//Verify that token is good for this port/server
+			    		String tokenServer = t.getFileServer();
+			    		int tokenPort = t.getFilePort();
+
+			    		if(!serverName.equals(tokenServer) || port != tokenPort){
+			    			System.out.println("Token invalid for this server");
+			    			System.exit(0);
+			    		}
+
 						ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 						if (sf == null) {
 							System.out.printf("Error: File %s doesn't exist\n", remotePath);
