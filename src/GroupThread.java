@@ -515,25 +515,6 @@ public class GroupThread extends Thread
 
 				 	output.writeObject(response);
 
-				//Client wants to authenticate the server with a random challenge
-				} else if (message.getMessage().equals("RANDOM")){
-					byte[] challenge = (byte[])message.getObjContents().get(0);
-
-					//Decrypts the sent challenge and sends it back for comparison
-					byte[] decryptedChallenge = null;
-					try {
-						Cipher RSACipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
-			            RSACipher.init(Cipher.DECRYPT_MODE, privateKey);
-			            //Decrypt the string using the Cipher
-			            decryptedChallenge = RSACipher.doFinal(challenge);
-					} catch (Exception ex){
-						ex.printStackTrace();
-					}
-					response = new Envelope("OK");
-					response.addObject(decryptedChallenge);
-
-					output.writeObject(response);
-
 				//Client wants public key of server
 				} else if (message.getMessage().equals("GETPUBLICKEY")){
 					response = new Envelope("KEY");

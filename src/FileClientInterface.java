@@ -30,8 +30,6 @@ public interface FileClientInterface
 
     public PublicKey getPublicKey();
 
-    public byte[] sendRandomChallenge(byte[] challenge);
-
     /**
      * Close down the connection to the file server.
      *

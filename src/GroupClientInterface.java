@@ -31,8 +31,6 @@ public interface GroupClientInterface
 
     public void setAESKey(Key AESKey);
 
-    public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal);
-
     /**
      * Close down the connection to the group server.
      *

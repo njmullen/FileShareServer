@@ -29,33 +29,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private byte[] signBytes = null;
 	private EncryptedToken tokenObj = null;
 
-	public boolean sendRandomChallenge(byte[] challenge, byte[] challengeOriginal){
-		Envelope message = null;
-		Envelope response = null;
-		byte[] decryptedChallenge = null;
-
-		try{
-			message = new Envelope("RANDOM");
-			message.addObject(challenge);
-			output.writeObject(message);
-
-			response = (Envelope)input.readObject();
-			if(response.getMessage().equals("OK")){
-				decryptedChallenge = (byte[])response.getObjContents().get(0);
-				if(Arrays.equals(decryptedChallenge, challengeOriginal)){
-					return true;
-				} else {
-					return false;
-				}
-			} else {
-				return false;
-			}
-		} catch (Exception ex){
-			ex.printStackTrace();
-		}
-
-		return false;
-	}
 
 	public PublicKey getPublicKey(){
 		Envelope message = null;
