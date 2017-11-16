@@ -34,9 +34,13 @@ public class FileThread extends Thread
 	private String serverName = null;
 	private int port = 0;
 
+	//TODO: Check that serverName = socket.getInet()... works on something
+	//other than localhost
+
 	public FileThread(Socket _socket)
 	{
 		socket = _socket;
+		//Check next line, see above
 		serverName = socket.getInetAddress().getHostName();
 		port = socket.getLocalPort();
 		
