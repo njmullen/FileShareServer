@@ -90,13 +90,13 @@ public class GroupClient extends Client implements GroupClientInterface {
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
+			//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
 			if(response.getMessage().equals("OK")){
-				//Check increment value
-				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-				if(!checkIncrement(incrementIn)){
-					System.out.println("Client Replay detected");
-					System.exit(0);
-				}
 				return true;
 			} else {
 				return false;
@@ -146,17 +146,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 		//Get back the token and signature
 	 		response = (Envelope)input.readObject();
+	 		//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(1);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
 	 		if(response.getMessage().equals("OK")){
 	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
 	 			EncryptedMessage tokenIn = tokenObj.getToken();
 				EncryptedMessage signIn = tokenObj.getSignature();
-
-				//Check increment value
-				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(1);
-				if(!checkIncrement(incrementIn)){
-					System.out.println("Client Replay detected");
-					System.exit(0);
-				}
 
 	 			AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 	 			AESDecrypter signDecr = new AESDecrypter(AESKey);
@@ -253,15 +252,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				response = (Envelope)input.readObject();
 
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
 					return true;
 				}
 
@@ -307,15 +306,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				response = (Envelope)input.readObject();
 
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
+
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
 					return true;
 				}
 
@@ -361,17 +361,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 				response = (Envelope)input.readObject();
 
 				//If server indicates success, return true
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
+
 					return true;
 				}
-
 				return false;
 			}
 			catch(Exception e)
@@ -412,15 +412,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 				output.writeObject(message);
 			
 				response = (Envelope)input.readObject();
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
 					return true;
 				}
 
@@ -478,12 +478,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 		memberList.add(thisMember);
 			 	}
 			 	//Check increment value
-				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(memberList.size());
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(memberList.size() + 1);
 				if(!checkIncrement(incrementIn)){
 					System.out.println("Client Replay detected");
 					System.exit(0);
 				}
 			 	return memberList;
+			 } else {
+			 	//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 			 }
 
 			 return null;
@@ -530,15 +537,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
 					return true;
 				}
 
@@ -585,15 +592,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 				output.writeObject(message);
 
 				response = (Envelope)input.readObject();
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				//If server indicates success, return true
 				if(response.getMessage().equals("OK"))
 				{
-					//Check increment value
-					EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
-					if(!checkIncrement(incrementIn)){
-						System.out.println("Client Replay detected");
-						System.exit(0);
-					}
 					return true;
 				}
 

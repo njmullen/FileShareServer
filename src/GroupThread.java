@@ -822,7 +822,6 @@ public class GroupThread extends Thread
 			yourToken = createToken(requester, yourToken.getFileServer(), yourToken.getFilePort());
 
 			List<String> userGroups = yourToken.getGroups();
-
 			return true;
 		} else {
 			//User does not exist
@@ -920,6 +919,9 @@ public class GroupThread extends Thread
 		AESDecrypter aesDecr = new AESDecrypter(AESKey);
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
+
+		System.out.println("Server recieved: " + incrementSent);
+		System.out.println("Server has: " + incrementVal);
 
 		if(incrementVal != incrementSent){
 			return false;
