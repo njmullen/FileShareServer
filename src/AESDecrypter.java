@@ -55,4 +55,19 @@ public class AESDecrypter {
       }
       return new String(decryptedText);
     }
+
+    public int decryptInt(EncryptedMessage sent) {
+       byte[] decryptedText = null;
+       byte[] encryptedBytes = sent.encryptedMessage;
+    try {
+        IvParameterSpec GCMSpec = new IvParameterSpec(sent.ivSpec);
+        AESDecryptCipher.init(Cipher.DECRYPT_MODE, AESkey, GCMSpec);
+        decryptedText = AESDecryptCipher.doFinal(encryptedBytes);
+      } catch (Exception ex){
+        ex.printStackTrace();
+      }
+      String decrString = new String(decryptedText);
+      int intVal = Integer.parseInt(decrString);
+      return intVal;
+    }
 }

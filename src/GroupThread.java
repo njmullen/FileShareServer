@@ -26,6 +26,7 @@ public class GroupThread extends Thread
 	private Key AESKey = null;
 	private PublicKey publicKey;
 	private PrivateKey privateKey;
+	private int incrementVal = 0;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
@@ -97,6 +98,13 @@ public class GroupThread extends Thread
 					String filePortString = filePortDecr.decrypt(filePortEnc);
 					int filePort = Integer.parseInt(filePortString);
 
+					//Check increment
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(3);
+					if(!checkIncrement(increment)){
+						System.out.println("GET TOKEN Server Replay detected");
+						System.exit(0);
+					}
+
 					if(username == null || fileServer == null)
 					{
 						response = new Envelope("FAIL");
@@ -143,6 +151,10 @@ public class GroupThread extends Thread
 						EncryptedToken encryptedToken = new EncryptedToken(tokenToPass, signToPass);
 
 						response.addObject(encryptedToken);
+						//Increment value
+						EncryptedMessage incrementSend = increment();
+						response.addObject(incrementSend);
+
 						output.writeObject(response);
 					}
 				}
@@ -164,6 +176,13 @@ public class GroupThread extends Thread
 								EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
 								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
 								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(3);
+
+								//Check increment
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(4);
+								if(!checkIncrement(increment)){
+									System.out.println("CUSER Server Replay detected");
+									System.exit(0);
+								}
 
 								if(!verifySignature(token, tokenSignature)){
 									System.out.println("Invalid signature");
@@ -187,7 +206,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DUSER")) //Client wants to delete a user
@@ -208,7 +229,12 @@ public class GroupThread extends Thread
 								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
 								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2); //extract signature
-
+								//Check increment
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(3);
+								if(!checkIncrement(increment)){
+									System.out.println("DUSER Server Replay detected");
+									System.exit(0);
+								}	
 								if(!verifySignature(tokenIn, signIn)){
 									System.out.println("Token error");
 									System.exit(0);
@@ -226,7 +252,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("CGROUP")) //Client wants to create a group
@@ -246,7 +274,13 @@ public class GroupThread extends Thread
 								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
 								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
-
+								//Check increment
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(3);
+								if(!checkIncrement(increment)){
+									System.out.println("CGROUP Server Replay detected");
+									System.exit(0);
+								}
+								//Check token signature
 								if(!verifySignature(tokenIn, signIn)){
 									System.out.println("Token error");
 									System.exit(0);
@@ -265,7 +299,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DGROUP")) //Client wants to delete a group
@@ -285,7 +321,12 @@ public class GroupThread extends Thread
 								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
 								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
-
+								//Check increment
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(3);
+								if(!checkIncrement(increment)){
+									System.out.println("DGROUP Server Replay detected");
+									System.exit(0);
+								}
 								if(!verifySignature(tokenIn, signIn)){
 									System.out.println("Token error");
 									System.exit(0);
@@ -304,7 +345,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("LMEMBERS")) //Client wants a list of members in a group
@@ -324,7 +367,12 @@ public class GroupThread extends Thread
 								EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(1); //Extract the token
 								EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(2);
-
+								//Check increment
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(3);
+								if(!checkIncrement(increment)){
+									System.out.println("Server Replay detected");
+									System.exit(0);
+								}
 								if(!verifySignature(tokenIn, signIn)){
 									System.out.println("Token error");
 									System.exit(0);
@@ -358,7 +406,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("AUSERTOGROUP")) //Client wants to add user to a group
@@ -383,7 +433,12 @@ public class GroupThread extends Thread
 										EncryptedMessage groupToAdd = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
 										EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
 										EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(3); //extract signature
-
+										//Check increment
+										EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(4);
+										if(!checkIncrement(increment)){
+											System.out.println("Server Replay detected");
+											System.exit(0);
+										}
 										if(!verifySignature(tokenIn, signIn)){
 											System.out.println("Token error");
 											System.exit(0);
@@ -407,7 +462,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("RUSERFROMGROUP")) //Client wants to remove user from a group
@@ -430,7 +487,12 @@ public class GroupThread extends Thread
 									EncryptedMessage groupName = (EncryptedMessage)message.getObjContents().get(1); //Extract the username
 									EncryptedMessage tokenIn = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
 									EncryptedMessage signIn = (EncryptedMessage)message.getObjContents().get(3);
-
+									//Check increment
+									EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(4);
+									if(!checkIncrement(increment)){
+										System.out.println("Server Replay detected");
+										System.exit(0);
+									}
 									AESDecrypter groupDecr = new AESDecrypter(AESKey);
 									AESDecrypter userDecr = new AESDecrypter(AESKey);
 									AESDecrypter tokenDecr = new AESDecrypter(AESKey);
@@ -454,7 +516,9 @@ public class GroupThread extends Thread
 							}
 						}
 					}
-
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("DISCONNECT")) //Client wants to disconnect
@@ -467,11 +531,18 @@ public class GroupThread extends Thread
 					}
 					EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0);
 					EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(2);
 
 					//Decrypt messages
 					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
 					String usernameDecr = aesDecrypter.decrypt(username);
 					String passwordDecr = aesDecrypter.decrypt(password);
+
+					//Check increment
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
 
 					//Hash password
 					byte[] passwordHash = null;
@@ -488,6 +559,10 @@ public class GroupThread extends Thread
 					} else {
 						response = new Envelope("FAIL");
 					}
+
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 
 					output.writeObject(response);
 
@@ -524,6 +599,13 @@ public class GroupThread extends Thread
 
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
+
+				 	//Write out and set increment value
+				 	Random rand = new Random();
+				 	incrementVal = rand.nextInt();
+				 	AESEncrypter valEncr = new AESEncrypter(AESKey);
+				 	EncryptedMessage value = valEncr.encrypt(incrementVal);
+				 	response.addObject(value);
 
 				 	output.writeObject(response);
 
@@ -824,6 +906,25 @@ public class GroupThread extends Thread
 		} else {
 			//Doesn't exist
 			return null;
+		}
+	}
+
+	public EncryptedMessage increment(){
+		incrementVal++;
+		AESEncrypter encr = new AESEncrypter(AESKey);
+		EncryptedMessage incrementEncrypted = encr.encrypt(incrementVal);
+		return incrementEncrypted;
+	}
+
+	private boolean checkIncrement(EncryptedMessage incrementEnc){
+		AESDecrypter aesDecr = new AESDecrypter(AESKey);
+		int incrementSent = aesDecr.decryptInt(incrementEnc);
+		incrementVal++;
+
+		if(incrementVal != incrementSent){
+			return false;
+		} else{
+			return true;
 		}
 	}
 

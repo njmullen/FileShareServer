@@ -37,7 +37,11 @@ public interface GroupClientInterface
      */
     public void disconnect();
 
-    public boolean checkPassword(String username, String password);
+    public boolean checkIncrement(EncryptedMessage increment);
+
+    public EncryptedMessage increment();
+
+    public boolean checkPassword(EncryptedMessage username, EncryptedMessage password);
     /**
      * Method used to get a token from the group server.  Right now,
      * there are no security checks.
