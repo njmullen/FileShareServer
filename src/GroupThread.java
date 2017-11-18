@@ -920,9 +920,6 @@ public class GroupThread extends Thread
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
 
-		System.out.println("Server recieved: " + incrementSent);
-		System.out.println("Server has: " + incrementVal);
-
 		if(incrementVal != incrementSent){
 			return false;
 		} else{
