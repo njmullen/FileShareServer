@@ -22,9 +22,15 @@ public class FileClient extends Client implements FileClientInterface {
 	private PublicKey groupServerKey = null;
 	private AESDecrypter aes = null;
 	private Key AESKey = null;
+	private int incrementVal = 0;
+	private EncryptedMessage encryptedVal = null;
 
 	public void setAESKey(Key key){
 		AESKey = key;
+		//Decrypt the increment value
+		AESDecrypter valDecr = new AESDecrypter(AESKey);
+		incrementVal = valDecr.decryptInt(encryptedVal);
+		System.out.println("CLIENT" + incrementVal);
 	}
 
 	public boolean getGroupServerKey(String server, int port){
@@ -93,6 +99,25 @@ public class FileClient extends Client implements FileClientInterface {
 		return publicKey;
 	}
 
+	public EncryptedMessage increment(){
+		incrementVal++;
+		AESEncrypter encr = new AESEncrypter(AESKey);
+		EncryptedMessage incrementEncrypted = encr.encrypt(incrementVal);
+		return incrementEncrypted;
+	}
+
+	public boolean checkIncrement(EncryptedMessage incrementEnc){
+		AESDecrypter aesDecr = new AESDecrypter(AESKey);
+		int incrementSent = aesDecr.decryptInt(incrementEnc);
+		incrementVal++;
+
+		if(incrementVal != incrementSent){
+			return false;
+		} else{
+			return true;
+		}
+	}
+
 	public boolean delete(String filename, EncryptedToken token) {
 		String remotePath;
 		if (filename.charAt(0)=='/') {
@@ -111,9 +136,20 @@ public class FileClient extends Client implements FileClientInterface {
 		Envelope env = new Envelope("DELETEF"); //Success
 	    env.addObject(encryptedFile);
 	    env.addObject(token);
+	    //Add increment value
+		EncryptedMessage increment = increment();
+		env.addObject(increment);
+
 	    try {
 			output.writeObject(env);
 		    env = (Envelope)input.readObject();
+
+		    //Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
 		    
 			if (env.getMessage().compareTo("OK")==0) {
 				System.out.printf("File %s deleted successfully\n", filename);				
@@ -353,6 +389,9 @@ public class FileClient extends Client implements FileClientInterface {
 			response = (Envelope)input.readObject();
 			if(response.getMessage().equals("OK")){
 				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				//Grabs the encrypted increment value which will be decrypted
+				//once the client calculates the shared AES key
+				encryptedVal = (EncryptedMessage)response.getObjContents().get(1);
 				return S;
 			}
 			return null;

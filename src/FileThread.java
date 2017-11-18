@@ -33,6 +33,7 @@ public class FileThread extends Thread
 	private PublicKey groupServerKey = null;
 	private String serverName = null;
 	private int port = 0;
+	private int incrementVal = 0;
 
 	//TODO: Check that serverName = socket.getInet()... works on something
 	//other than localhost
@@ -353,7 +354,12 @@ public class FileThread extends Thread
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
-
+					//Check increment
+					EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(2);
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
 					
 					//Decrypt everything
 					AESDecrypter remDec = new AESDecrypter(AESKey);
@@ -415,8 +421,9 @@ public class FileThread extends Thread
 					else{
 						e = new Envelope("FAIL!! UNABLE TO VERIFY SIGNATURE");
 					}
-
-					
+					//Increment
+					EncryptedMessage incrementSend = increment();
+					e.addObject(incrementSend);
 					output.writeObject(e);
 
 				}
@@ -468,6 +475,14 @@ public class FileThread extends Thread
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
 
+				 	//Write out and set increment value
+				 	Random rand = new Random();
+				 	incrementVal = rand.nextInt();
+				 	AESEncrypter valEncr = new AESEncrypter(AESKey);
+				 	EncryptedMessage value = valEncr.encrypt(incrementVal);
+				 	response.addObject(value);
+
+
 				 	output.writeObject(response);
 				}
 
@@ -501,6 +516,25 @@ public class FileThread extends Thread
 		}
 		return false;
 		
+	}
+
+	public EncryptedMessage increment(){
+		incrementVal++;
+		AESEncrypter encr = new AESEncrypter(AESKey);
+		EncryptedMessage incrementEncrypted = encr.encrypt(incrementVal);
+		return incrementEncrypted;
+	}
+
+	private boolean checkIncrement(EncryptedMessage incrementEnc){
+		AESDecrypter aesDecr = new AESDecrypter(AESKey);
+		int incrementSent = aesDecr.decryptInt(incrementEnc);
+		incrementVal++;
+
+		if(incrementVal != incrementSent){
+			return false;
+		} else{
+			return true;
+		}
 	}
 
 }
