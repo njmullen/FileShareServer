@@ -1,5 +1,6 @@
 
 import java.util.List;
+import java.util.ArrayList;
 import java.security.*;
 import javax.crypto.*;
 import org.bouncycastle.jce.provider.*;
@@ -63,7 +64,7 @@ public interface FileClientInterface
      * @return true on success, false on failure
      *
      */
-    public boolean upload(final String sourceFile, final String destFile, final String group, final EncryptedToken token);
+    public boolean upload(final String sourceFile, final String destFile, final String group, final EncryptedToken token, final ArrayList<GroupKey> groupKeys);
 
 
     /**
@@ -77,7 +78,7 @@ public interface FileClientInterface
      * @return true on success, false on failure
      *
      */
-    public boolean download(final String sourceFile, final String destFile, final EncryptedToken token);
+    public boolean download(final String sourceFile, final String destFile, final EncryptedToken token, final ArrayList<GroupKey> groupKeys);
 
 
     /**

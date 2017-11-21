@@ -10,4 +10,12 @@ public class EncryptedMessage implements java.io.Serializable {
     this.encryptedMessage = encryptedMessage;
     this.ivSpec = ivSpec.getIV();
   }
+
+  public byte[] getEncryptedBytes(){
+  	return encryptedMessage;
+  }
+
+  public byte[] getIVBytes(){
+  	return ivSpec;
+  }
 }

@@ -204,11 +204,13 @@ public class FileThread extends Thread
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
 
-									EncryptedMessage encBuf = (EncryptedMessage)e.getObjContents().get(0);
+									// EncryptedMessage encBuf = (EncryptedMessage)e.getObjContents().get(0);
 
-									AESDecrypter decBuf = new AESDecrypter(AESKey);
+									// AESDecrypter decBuf = new AESDecrypter(AESKey);
 
-									fos.write(decBuf.decryptBytes(encBuf), 0, (Integer)e.getObjContents().get(1));
+									byte[] toWrite = (byte[])e.getObjContents().get(0);
+
+									fos.write(toWrite, 0, (Integer)e.getObjContents().get(1));
 									response = new Envelope("READY"); //Success
 									output.writeObject(response);
 									e = (Envelope)input.readObject();
@@ -288,6 +290,12 @@ public class FileThread extends Thread
 
 						}
 						else {
+
+							//Send a message containing the group for the file
+							AESEncrypter groupEnc = new AESEncrypter(AESKey);
+							EncryptedMessage encGroup = groupEnc.encrypt(sf.getGroup());
+							e = new Envelope("GROUP");
+							e.addObject(encGroup);
 							FileInputStream fis = new FileInputStream(f);
 
 							do {
@@ -296,6 +304,7 @@ public class FileThread extends Thread
 									System.out.printf("Server error: %s\n", e.getMessage());
 									break;
 								}
+
 								e = new Envelope("CHUNK");
 								int n = fis.read(buf); //can throw an IOException
 								if (n > 0) {

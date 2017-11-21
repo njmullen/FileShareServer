@@ -10,6 +10,8 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.spec.IvParameterSpec;
+
 import java.math.BigInteger;
 import org.bouncycastle.jce.provider.*;
 import java.security.spec.*;
@@ -167,7 +169,7 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
+	public boolean download(String sourceFile, String destFile, EncryptedToken token, ArrayList<GroupKey> groupKeys) {
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -188,14 +190,82 @@ public class FileClient extends Client implements FileClientInterface {
 			    output.writeObject(env); 
 			
 			    env = (Envelope)input.readObject();
-			    
+			
+			    String group = null;
+
+			    //Receive the group from the server
+				if(env.getMessage().compareTo("GROUP") == 0){
+					AESDecrypter groupDec = new AESDecrypter(AESKey);
+					group = groupDec.decrypt((EncryptedMessage)env.getObjContents().get(0));
+				}
+				else{
+					System.out.printf("Error: Could not retrieve group for file");
+				}
+
+				//Grab group key from list
+				SecretKey groupKey = null;
+				for(int i = 0; i < groupKeys.size(); i++){
+					if(groupKeys.get(i).getName().compareTo(group) == 0){
+						groupKey = groupKeys.get(i).getKey();
+						break;
+					}
+				}
+
+				env = (Envelope)input.readObject();
+
+			    //TODO: Ensure bounds
+			    //Read in IvSpec and entire encrypted file
+			    boolean readingSize = true;
+			    boolean readingIV = false;
+			    byte[] ivBytes = new byte[1];
+			    int ivSize = 0;
+			    StringBuilder encFileSb = new StringBuilder();
 				while (env.getMessage().compareTo("CHUNK")==0) { 
-						fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
-						System.out.printf(".");
-						env = new Envelope("DOWNLOADF"); //Success
-						output.writeObject(env);
-						env = (Envelope)input.readObject();									
-				}										
+					byte[] bytesIn = (byte[])env.getObjContents().get(0);
+					int messageSize = (Integer)env.getObjContents().get(1);
+					int ind = 0;
+					//Check if reading size of IVSpec
+					if(readingSize){
+						//Parse the size of the IVSpec
+						StringBuilder sizeSB = new StringBuilder();
+						int i = 0;
+						while((char)bytesIn[i] != '|'){
+							sizeSB.append((char)bytesIn[i++]);
+						}
+						ind = ++i;
+						ivSize = new Integer(sizeSB.toString());
+						readingSize = false;
+						readingIV = true;
+					}
+					//Check if reading the IVSpec
+					if(readingIV){
+						ivBytes = new byte[ivSize];
+						for(int i = 0; i < ivSize; i++){
+							ivBytes[i] = bytesIn[ind++];
+						}
+						readingIV = false;
+						messageSize -= ind;
+					}
+					while(ind < messageSize){
+						encFileSb.append((char)bytesIn[ind++]);
+					}
+					//fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
+					
+					System.out.printf(".");
+					env = new Envelope("DOWNLOADF"); //Success
+					output.writeObject(env);
+					env = (Envelope)input.readObject();									
+				}
+
+				//Decrypt and write the file
+				byte[] encFileBytes = encFileSb.toString().getBytes();
+				IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
+				EncryptedMessage encFile = new EncryptedMessage(encFileBytes, ivSpec);
+
+				AESDecrypter fileDec = new AESDecrypter(groupKey);
+				byte[] decFileBytes = fileDec.decryptBytes(encFile);
+
+				fos.write(decFileBytes);
 				fos.close();
 				
 			    if(env.getMessage().compareTo("EOF")==0) {
@@ -269,7 +339,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group,
-			EncryptedToken token) {
+			EncryptedToken token, ArrayList<GroupKey> groupKeys) {
 			
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;
@@ -285,62 +355,118 @@ public class FileClient extends Client implements FileClientInterface {
 		 	EncryptedMessage dest = destEnc.encrypt(destFile);
 		 	EncryptedMessage _group = groupEnc.encrypt(group);
 
-			 Envelope message = null, env = null;
-			 //Tell the server to return the member list
-			 message = new Envelope("UPLOADF");
-			 message.addObject(dest);
-			 message.addObject(_group);
-			 message.addObject(token); //Add requester's token
-			 output.writeObject(message);
-			
+			Envelope message = null, env = null;
+			//Tell the server to return the member list
+			message = new Envelope("UPLOADF");
+			message.addObject(dest);
+			message.addObject(_group);
+			message.addObject(token); //Add requester's token
+			output.writeObject(message);
 			 
-			 FileInputStream fis = new FileInputStream(sourceFile);
+			env = (Envelope)input.readObject();
 			 
-			 env = (Envelope)input.readObject();
-			 
-			 //If server indicates success, return the member list
-			 if(env.getMessage().equals("READY"))
-			 { 
+			//If server indicates success, return the member list
+			if(env.getMessage().equals("READY"))
+			{ 
 				System.out.printf("Meta data upload successful\n");
-				
 			}
-			 else {
+			else {
+				System.out.printf("Upload failed: %s\n", env.getMessage());
+				return false;
+			}
+
+			//Read in entire file
+			byte[] fileBytes = new byte[1];
+			try{
+				FileInputStream fis = new FileInputStream(sourceFile);
+				fileBytes = new byte[fis.available()];
+				fis.read(fileBytes);
+				fis.close();
+			}
+			catch(Exception ex){
+				ex.printStackTrace();
+			}
+
+			//Find group key in list
+			SecretKey groupKey = null;
+			for(int i = 0; i < groupKeys.size(); i++){
+				if(groupKeys.get(i).getName().compareTo(group) == 0){
+					groupKey = groupKeys.get(i).getKey();
+					break;
+				}
+			}
+			//Sanity check
+			if(groupKey == null){
+				System.out.println(">>>Error: Could not find group in list");
+				return false;
+			}
+
+			//Encrypt the file using group key
+			AESEncrypter fileEnc = new AESEncrypter(groupKey);
+			EncryptedMessage encFile = fileEnc.encrypt(fileBytes);
+
+			//Get byte[]'s for the encFile object
+			byte[] ivBytes = encFile.getIVBytes();
+			byte[] encFileBytes = encFile.getEncryptedBytes();
+			byte[] ivSizeBytes = new Integer(ivBytes.length).toString().getBytes();
+
+			//Put into new byte array: [size of IV, |, ivBytes, encFileBytes]
+			int sizeToSend = ivSizeBytes.length + ivBytes.length + encFileBytes.length + 1;
+			byte[] toSend = new byte[sizeToSend];
+			int i;
+			for(i = 0; i < ivSizeBytes.length; i++){
+				toSend[i] = ivSizeBytes[i];
+			}
+			toSend[i++] = ((byte)'|');
+			for(int j = 0; j < ivBytes.length; j++){
+				toSend[i++] = ivBytes[j];
+			}
+			for(int k = 0; k < encFileBytes.length; k++){
+				toSend[i++] = encFileBytes[k];
+			}
+
+			int t = 0;
+			do {
+				byte[] buf = new byte[4096];
+			 	if (env.getMessage().compareTo("READY")!=0) {
+			 		System.out.printf("Server error: %s\n", env.getMessage());
+			 		return false;
+			 	}
+			 	message = new Envelope("CHUNK");
+
+			 	//Populate buf
+			 	for(i = 0; i < buf.length; i++){
+			 		if(t == toSend.length){
+			 			break;
+			 		}
+			 		buf[i] = toSend[t++];
+			 		System.out.printf(".");
+			 	}
+
+				// int n = fis.read(buf); //can throw an IOException
+				// if (n > 0) {
+				// 	System.out.printf(".");
+				// } else if (n < 0) {
+				// 	System.out.println("Read error");
+				// 	return false;
+				// }
+
+				// //????????????????
+				// AESEncrypter bufEnc = new AESEncrypter(groupKey);
+
+				// EncryptedMessage bufSend = bufEnc.encrypt(buf);
+
+				message.addObject(buf);
+				message.addObject(new Integer(i + 1));
 				
-				 System.out.printf("Upload failed: %s\n", env.getMessage());
-				 return false;
-			 }
-			 
-		 	
-			 do {
-				 byte[] buf = new byte[4096];
-				 	if (env.getMessage().compareTo("READY")!=0) {
-				 		System.out.printf("Server error: %s\n", env.getMessage());
-				 		return false;
-				 	}
-				 	message = new Envelope("CHUNK");
-					int n = fis.read(buf); //can throw an IOException
-					if (n > 0) {
-						System.out.printf(".");
-					} else if (n < 0) {
-						System.out.println("Read error");
-						return false;
-					}
-					
-					AESEncrypter bufEnc = new AESEncrypter(AESKey);
-
-					EncryptedMessage bufSend = bufEnc.encrypt(buf);
-
-					message.addObject(bufSend);
-					message.addObject(new Integer(n));
-					
-					output.writeObject(message);
-					
-					
-					env = (Envelope)input.readObject();
-					
+				output.writeObject(message);
+				
+				
+				env = (Envelope)input.readObject();
+				
 										
 			 }
-			 while (fis.available()>0);		 
+			 while (t < toSend.length);		 
 					 
 			 //If server indicates success, return the member list
 			 if(env.getMessage().compareTo("READY")==0)
@@ -376,7 +502,8 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	//Diffie-Hellman exchange to create shared AES session key
-	 public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C){
+	public BigInteger performDiffie(BigInteger p, BigInteger g, BigInteger C)
+	 {
 	 	try{
 	 		Envelope message = null, response = null;
 	 		message = new Envelope("DH");

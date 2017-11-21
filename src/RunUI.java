@@ -35,6 +35,7 @@ public class RunUI {
 
     Key gsAESKey = null;
     Key fsAESKey = null;
+    ArrayList<GroupKey> groupKeys = null;
 
     Security.addProvider(new BouncyCastleProvider());
 
@@ -370,6 +371,7 @@ public class RunUI {
     //If the username doesn't exist, throw invalid username, though this would have
     //said invalid password and kicked user out before this is reached
     token = gc.getToken(username, fileServerChoice, filePort);
+    groupKeys = gc.getGroupKeys();
 
     if (token == null){
         System.out.println("Invalid username");
@@ -539,7 +541,7 @@ public class RunUI {
                         destFile = scan.next();
                         System.out.println("Enter the name of the group to which this file should be added:  ");
                         group = scan.next();
-                        if(fc.upload(sourceFile, destFile, group, fsToken)){
+                        if(fc.upload(sourceFile, destFile, group, fsToken, groupKeys)){
                             System.out.println(sourceFile + " successfully uploaded as " + destFile + " in group " + group);
                         }
                         else{
@@ -553,7 +555,7 @@ public class RunUI {
                         sourceFile = scan.next();
                         System.out.println("Enter the name of the local destination file: ");
                         destFile = scan.next();
-                        if(fc.download(sourceFile, destFile, fsToken)){
+                        if(fc.download(sourceFile, destFile, fsToken, groupKeys)){
                             System.out.println(sourceFile + " succesfully downloaded as " + destFile);
                         }
                         else{
