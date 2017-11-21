@@ -30,6 +30,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private EncryptedToken tokenObj = null;
 	private EncryptedMessage encryptedVal = null;
 	private int incrementVal = 0;
+	private ArrayList<GroupKey> groupKeys = new ArrayList<GroupKey>();
 
 
 	public PublicKey getPublicKey(){
@@ -116,7 +117,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		System.out.println("CLIENT" + incrementVal);
 	}
 
-	 public EncryptedToken getToken(String username, String fileServer, int filePort){
+	public EncryptedToken getToken(String username, String fileServer, int filePort){
 	 	try{
 	 		Envelope message = null;
 	 		Envelope response = null;
@@ -146,13 +147,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 		//Get back the token and signature
 	 		response = (Envelope)input.readObject();
+
 	 		//Check increment value
-			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(1);
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(2);
 			if(!checkIncrement(incrementIn)){
 				System.out.println("Client Replay detected");
 				System.exit(0);
 			}
 	 		if(response.getMessage().equals("OK")){
+	 			//Decrypt the token and signature 
 	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
 	 			EncryptedMessage tokenIn = tokenObj.getToken();
 				EncryptedMessage signIn = tokenObj.getSignature();
@@ -170,6 +173,13 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 				return tokenObj;
 	 			} else {
 	 				System.exit(0);
+	 			}
+
+	 			//Decrypt the list of group keys
+	 			ArrayList<EncryptedGroupKey> encList = (ArrayList<EncryptedGroupKey>)response.getObjContents().get(1);
+	 			groupKeys = new ArrayList<GroupKey>();
+	 			for(int i = 0; i < encList.size(); i++){
+	 				groupKeys.add(encList.get(i).getDecrypted(AESKey));
 	 			}
 	 		}
 

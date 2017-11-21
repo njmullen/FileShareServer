@@ -24,11 +24,14 @@ public class GroupServer extends Server {
 
 	public GroupServer() {
 		super(SERVER_PORT, "ALPHA");
+		Security.addProvider(new BouncyCastleProvider());
 	}
 
 	public GroupServer(int _port) {
 		super(_port, "ALPHA");
 		currentPort = _port;
+		Security.addProvider(new BouncyCastleProvider());
+
 	}
 
 	public void start() {
@@ -73,6 +76,31 @@ public class GroupServer extends Server {
 			userList.addUser(username, passwordHash);
 			userList.addGroup(username, "ADMIN");
 			userList.addOwnership(username, "ADMIN");
+
+			//Generate a 128-bit AES key for file encryption under ADMIN group
+			//Generate 128-bit AES key for file encryption 
+			try{
+				KeyGenerator keyGen = KeyGenerator.getInstance("AES", "BC");
+				keyGen.init(128);
+				SecretKey key = keyGen.generateKey();
+
+				//Write key to file
+				//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
+				FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
+				byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
+				//String format = key.getFormat();
+				groupKeyWrite.write(new String("ADMIN").getBytes());
+				// groupKeyWrite.write(new String("|").getBytes());
+				// groupKeyWrite.write(format.getBytes());
+				groupKeyWrite.write(new String("|").getBytes());
+				groupKeyWrite.write(keyBytes);
+				groupKeyWrite.write(new String("|").getBytes());
+				
+				groupKeyWrite.close();
+			}
+			catch (Exception ex){
+				ex.printStackTrace();
+			}
 
 			//Create the public/private keypair for the server
 			//Generate the keypair

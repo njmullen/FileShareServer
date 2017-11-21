@@ -151,6 +151,17 @@ public class GroupThread extends Thread
 						EncryptedToken encryptedToken = new EncryptedToken(tokenToPass, signToPass);
 
 						response.addObject(encryptedToken);
+
+						//Generate list of encrypted group keys to send to user
+						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
+						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
+						for(int i = 0; i < groupKeys.size(); i++){
+							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));
+						}
+
+						response.addObject(encGroupKeys);
+
+
 						//Increment value
 						EncryptedMessage incrementSend = increment();
 						response.addObject(incrementSend);
@@ -525,7 +536,9 @@ public class GroupThread extends Thread
 				{
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
-				} else if(message.getMessage().equals("CHECKPWD")){ //Client wants to check a password
+				} 
+				else if(message.getMessage().equals("CHECKPWD")) //Client wants to check a password
+				{ 
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
@@ -565,9 +578,9 @@ public class GroupThread extends Thread
 					response.addObject(incrementSend);
 
 					output.writeObject(response);
-
-				//Client wants to do a DH exchange
-				} else if (message.getMessage().equals("DH")){
+				} 
+				else if (message.getMessage().equals("DH")) //Client wants to perform a Diffie-Hellman exchange
+				{
 					if(message.getObjContents().size() < 3){
 						response = new Envelope("FAIL");
 					}
@@ -608,9 +621,9 @@ public class GroupThread extends Thread
 				 	response.addObject(value);
 
 				 	output.writeObject(response);
-
-				//Client wants public key of server
-				} else if (message.getMessage().equals("GETPUBLICKEY")){
+				} 
+				else if (message.getMessage().equals("GETPUBLICKEY")) //Client wants public key of server
+				{
 					response = new Envelope("KEY");
 					response.addObject(publicKey);
 					output.writeObject(response);
@@ -628,7 +641,8 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean verifySignature(EncryptedMessage tokenIn, EncryptedMessage signature){
+	private boolean verifySignature(EncryptedMessage tokenIn, EncryptedMessage signature)
+	{
 		AESDecrypter tokenDecrypter = new AESDecrypter(AESKey);
 		AESDecrypter sigDecrypter = new AESDecrypter(AESKey);
 
@@ -647,7 +661,8 @@ public class GroupThread extends Thread
 		return false;
 	}
 
-	private boolean checkPassword(String username, byte[] password){
+	private boolean checkPassword(String username, byte[] password)
+	{
 		if (my_gs.userList.checkUser(username)){
 			byte[] retrievedPassword = my_gs.userList.getPassword(username);
 			return Arrays.equals(password, retrievedPassword);
@@ -770,7 +785,8 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean deleteGroup(String groupname, UserToken yourToken){
+	private boolean deleteGroup(String groupname, UserToken yourToken)
+	{
 		String requester = yourToken.getSubject();
 		//Check if requesting user exists
 		if(my_gs.userList.checkUser(requester)){
@@ -796,10 +812,10 @@ public class GroupThread extends Thread
 			//Doesn't exist
 			return false;
 		}
-
 	}
 
-	private boolean createGroup(String groupname, UserToken yourToken){
+	private boolean createGroup(String groupname, UserToken yourToken)
+	{
 		String requester = yourToken.getSubject();
 		//Check if requesting user exists
 		if(my_gs.userList.checkUser(requester)){
@@ -819,6 +835,30 @@ public class GroupThread extends Thread
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
 
+			//Generate 128-bit AES key for file encryption 
+			try{
+				KeyGenerator keyGen = KeyGenerator.getInstance("AES", "BC");
+				keyGen.init(128);
+				SecretKey key = keyGen.generateKey();
+
+				//Write key to file
+				//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
+				FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
+				byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
+				// String format = key.getFormat();
+				groupKeyWrite.write(groupname.getBytes());
+				// groupKeyWrite.write(new String("|").getBytes());
+				// groupKeyWrite.write(format.getBytes());
+				groupKeyWrite.write(new String("|").getBytes());
+				groupKeyWrite.write(keyBytes);
+				groupKeyWrite.write(new String("|").getBytes());
+				groupKeyWrite.close();
+			}
+			catch (Exception ex){
+				ex.printStackTrace();
+			}
+			
+
 			yourToken = createToken(requester, yourToken.getFileServer(), yourToken.getFilePort());
 
 			List<String> userGroups = yourToken.getGroups();
@@ -827,10 +867,10 @@ public class GroupThread extends Thread
 			//User does not exist
 			return false;
 		}
-
 	}
 
-	private boolean addUserToGroup(String username, String groupname, UserToken yourToken){
+	private boolean addUserToGroup(String username, String groupname, UserToken yourToken)
+	{
 		String requester = yourToken.getSubject();
 		//Check that token holder and user exist
 		if(my_gs.userList.checkUser(requester) && my_gs.userList.checkUser(username)){
@@ -854,7 +894,8 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken){
+	private boolean deleteUserFromGroup(String username, String groupname, UserToken yourToken)
+	{
 		String requester = yourToken.getSubject();
 		//Check that token holder and user exist
 		if(my_gs.userList.checkUser(requester) && my_gs.userList.checkUser(username)){
@@ -878,7 +919,8 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private List<String> listMembers(String group, UserToken yourToken){
+	private List<String> listMembers(String group, UserToken yourToken)
+	{
 		String requester = yourToken.getSubject();
 		List<String> members = new ArrayList<String>();
 		//Check that requester exists
@@ -908,14 +950,16 @@ public class GroupThread extends Thread
 		}
 	}
 
-	public EncryptedMessage increment(){
+	public EncryptedMessage increment()
+	{
 		incrementVal++;
 		AESEncrypter encr = new AESEncrypter(AESKey);
 		EncryptedMessage incrementEncrypted = encr.encrypt(incrementVal);
 		return incrementEncrypted;
 	}
 
-	private boolean checkIncrement(EncryptedMessage incrementEnc){
+	private boolean checkIncrement(EncryptedMessage incrementEnc)
+	{
 		AESDecrypter aesDecr = new AESDecrypter(AESKey);
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
@@ -927,4 +971,102 @@ public class GroupThread extends Thread
 		}
 	}
 
+	private ArrayList<GroupKey> getGroupKeys(List<String> groupNames)
+	{
+		//Read in all group keys
+		byte[] allBytes = new byte[1];
+		try{
+			File groupKeysFile = new File("groupKeyList");
+			FileInputStream in = new FileInputStream(groupKeysFile);
+			allBytes = new byte[in.available()];
+			in.read(allBytes);
+			in.close();
+		}
+		catch(Exception ex){
+			ex.printStackTrace();
+		}
+		
+		//Parse file text to compile a list of applicable keys
+		ArrayList<GroupKey> keyList = new ArrayList<GroupKey>();
+		StringBuilder name = new StringBuilder();
+		//StringBuilder form = new StringBuilder();
+		int i = 0;
+		boolean proceed = true;
+		boolean parsingName = true;
+		//boolean parsingFormat = false;
+		while(proceed){
+			//Check bound
+			if(i >= allBytes.length){
+				proceed = false;
+			}
+			//Parse Group Name
+			else if(parsingName){
+				char c = (char) allBytes[i++];
+				if(c == '|'){ //Reached the end of the group name
+
+					//Check if group name is in the list of groups the user belongs to 
+					if(groupNames.contains(name.toString())){
+						parsingName = false;
+					}
+					else{
+						//Flush group name
+						name = new StringBuilder();
+						//Traverse to beginning of next group name
+						while(c != '|'){
+							c = (char) allBytes[i++];
+						}
+						i++;
+					}
+				}
+				else{
+					name.append(c);
+				}
+			}
+
+			// //Parse format
+			// else if(parsingFormat){
+			// 	char c = (char) allBytes[i++];
+			// 	if(c == "|"){
+			// 		parsingFormat = false;
+			// 	}
+			// 	else{
+			// 		form.append(c);
+			// 	}
+			// }
+
+			//Parse key 
+			else{
+				//Fill new byte[] with Base64 encoded key bytes
+				byte[] keyBytes = new byte[24];
+				int j = i + 23;
+				int k = 0;
+				assert (j < allBytes.length);
+				while(i <= j){
+					keyBytes[k++] = allBytes[i++];
+				}
+
+				//Check that next character is the delimeter 
+				if((char) allBytes[i++] != '|'){
+					System.out.printf("\n>>>Something went wrong while parsing group key\n");
+					System.out.printf(">>>Group Name: " + name.toString() + "\n");
+					System.out.printf(">>>KeyBytes Processed: " + new String(keyBytes) + "\n\n");
+					proceed = false;
+					break;
+				}
+
+				//Create a Key from keyBytes
+				byte[] decodedKey = Base64.getDecoder().decode(keyBytes);
+				SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+
+				//Create new GroupKey and add to list
+				keyList.add(new GroupKey(name.toString(), key));
+
+				//Flush name 
+				name = new StringBuilder();
+				parsingName = true;
+			}
+		}
+
+		return keyList;
+	}
 }
