@@ -56,7 +56,7 @@ public class RunUI {
     int groupPort = 8765;
     int filePort = 4321;
     String groupServerChoice = "localhost";
-    String fileServerChoice = "localhost";
+    String fileServerChoice = "127.0.0.1";
 
     //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
@@ -440,10 +440,18 @@ public class RunUI {
                         System.out.println("Enter the group name: ");
                         String groupName = checkForPipe(scan);
                         if(gc.createGroup(groupName, token)){
+                            token = gc.getToken(username, fileServerChoice, filePort);
                             System.out.println(groupName + " succesfully created!");
                         } else {
                             System.out.println("Error! Unable to create " + groupName);
                         }
+                        groupKeys = gc.getGroupKeys();
+                        System.out.println("Group Keys Size = " + groupKeys.size());
+                        //TROUBLESHOOTING:
+                        for(int i = 0; i < groupKeys.size(); i++){
+                            System.out.println(groupKeys.get(i).getName() + " -> " + groupKeys.get(i).getKey() + "\n");
+                        }
+
                         break;
                     //List members of a group
                     case 4:

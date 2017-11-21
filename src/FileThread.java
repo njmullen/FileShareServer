@@ -181,6 +181,10 @@ public class FileThread extends Thread
 
 				    		if(!serverName.equals(tokenServer) || port != tokenPort){
 				    			System.out.println("Token invalid for this server");
+				    			System.out.println(">>Server Name = " + serverName);
+				    			System.out.println(">>Token Server = " + tokenServer);
+				    			System.out.println(">>Port = " + port);
+				    			System.out.println(">>Token Port = " + tokenPort);
 				    			System.exit(0);
 				    		}
 

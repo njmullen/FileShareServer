@@ -177,9 +177,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	 			//Decrypt the list of group keys
 	 			ArrayList<EncryptedGroupKey> encList = (ArrayList<EncryptedGroupKey>)response.getObjContents().get(1);
+
+	 			//TROUBLESHOOTING:
+	 			System.out.printf(">>>EncList Size = " + encList.size() + "\n");
+
 	 			groupKeys = new ArrayList<GroupKey>();
 	 			for(int i = 0; i < encList.size(); i++){
 	 				groupKeys.add(encList.get(i).getDecrypted(AESKey));
+	 				//TROUBLESHOOTING
+	 				System.out.printf(groupKeys.get(i).getName() + " -> " + groupKeys.get(i).getKey() + "\n");
+	 			}
+
+	 			//TROUBLESHOOTING
+	 			if(encList.size() == 0){
+	 				groupKeys.add(new GroupKey("zero", null));
 	 			}
 	 		}
 
@@ -379,7 +390,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 				}
 				if(response.getMessage().equals("OK"))
 				{
-
 					return true;
 				}
 				return false;
@@ -638,6 +648,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 }
 
 	public ArrayList<GroupKey> getGroupKeys(){
+		//TROUBLESHOOTING
+		System.out.printf("\n\n>>>SENT IT!!!\n\n");
 		return groupKeys;
 	}
 }

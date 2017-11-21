@@ -154,10 +154,18 @@ public class GroupThread extends Thread
 
 						//Generate list of encrypted group keys to send to user
 						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
+
+						//TROUBLESHOOTING:
+						System.out.printf("Group Keys Size = " + groupKeys.size() + "\n");
+
 						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
 						for(int i = 0; i < groupKeys.size(); i++){
 							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));
 						}
+						
+
+						//TROUBLESHOOTING:
+						System.out.printf("Enc Group Keys Size = " + encGroupKeys.size() + "\n");
 
 						response.addObject(encGroupKeys);
 
