@@ -195,6 +195,7 @@ public class RunUI {
 
     } else {
     	System.out.println("Unable to connect to GroupServer");
+        System.exit(0);
     }
 
     //Start connection to FileServer
@@ -324,6 +325,7 @@ public class RunUI {
         }
     } else {
         System.out.println("Unable to connect to FileServer");
+        System.exit(0);
     }
 
     //Create AESEnncrypted who can hold state

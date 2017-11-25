@@ -31,7 +31,6 @@ public class FileClient extends Client implements FileClientInterface {
 		//Decrypt the increment value
 		AESDecrypter valDecr = new AESDecrypter(AESKey);
 		incrementVal = valDecr.decryptInt(encryptedVal);
-		System.out.println("CLIENT" + incrementVal);
 	}
 
 	public boolean getGroupServerKey(String server, int port){
@@ -171,16 +170,14 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
-		System.out.println("FUCK");
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
 
 		File file = new File(destFile);
-	    try {
-	    				
+	    try {			
 			System.out.println("Download");
-		    if (!file.exists()) {
+		    if (!file.exists()){
 		    	file.createNewFile();
 			    FileOutputStream fos = new FileOutputStream(file);
 			    
@@ -190,7 +187,10 @@ public class FileClient extends Client implements FileClientInterface {
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
-			    output.writeObject(env); 
+			    //Add increment value
+				EncryptedMessage increment = increment();
+				env.addObject(increment);
+				output.writeObject(env);
 			
 			    env = (Envelope)input.readObject();
 			    
@@ -204,6 +204,12 @@ public class FileClient extends Client implements FileClientInterface {
 				fos.close();
 				
 			    if(env.getMessage().compareTo("EOF")==0) {
+			    	//Check increment value
+				 	 EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+				  	 if(!checkIncrement(incrementIn)){
+					  	System.out.println("Client Replay detected");
+					 	System.exit(0);
+					 }
 			    	 fos.close();
 						System.out.printf("\nTransfer successful file %s\n", sourceFile);
 						env = new Envelope("OK"); //Success
@@ -212,6 +218,12 @@ public class FileClient extends Client implements FileClientInterface {
 				else {
 						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
 						file.delete();
+						//Check increment value
+					 	 EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					  	 if(!checkIncrement(incrementIn)){
+						  	System.out.println("Client Replay detected");
+						 	System.exit(0);
+						 }
 						return false;								
 				}
 		    }    
@@ -232,6 +244,119 @@ public class FileClient extends Client implements FileClientInterface {
 	    catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
+		 return true;
+	}
+
+	public boolean upload(String sourceFile, String destFile, String group, EncryptedToken token) {	
+		if (destFile.charAt(0)!='/') {
+			 destFile = "/" + destFile;
+		}
+		
+		try {
+		 	//Encrypt Everything
+		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
+		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
+
+		 	EncryptedMessage dest = destEnc.encrypt(destFile);
+		 	EncryptedMessage _group = groupEnc.encrypt(group);
+
+			 Envelope message = null, env = null;
+			 //Tell the server to return the member list
+			 message = new Envelope("UPLOADF");
+			 message.addObject(dest);
+			 message.addObject(_group);
+			 message.addObject(token); //Add requester's token
+			 //Add increment value
+			 EncryptedMessage increment = increment();
+			 message.addObject(increment);
+			 output.writeObject(message);
+			
+			 
+			 FileInputStream fis = new FileInputStream(sourceFile);
+			 
+			 env = (Envelope)input.readObject();
+			 
+			 //If server indicates success, return the member list
+			 if(env.getMessage().equals("READY")){
+				System.out.printf("Meta data upload successful\n");
+			 } else {
+				 System.out.printf("Upload failed: %s\n", env.getMessage());
+				 //Check increment value
+			 	 EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+			  	 if(!checkIncrement(incrementIn)){
+				  	System.out.println("Client Replay detected");
+				 	System.exit(0);
+				 }
+				 return false;
+			 }
+			 
+			 do {
+				byte[] buf = new byte[4096];
+			 	if (env.getMessage().compareTo("READY")!=0) {
+			 		System.out.printf("Server error: %s\n", env.getMessage());
+			 		return false;
+			 	}
+			 	message = new Envelope("CHUNK");
+				int n = fis.read(buf); //can throw an IOException
+				if (n > 0) {
+					System.out.printf(".");
+				} else if (n < 0) {
+					System.out.println("Read error");
+					return false;
+				}
+				
+				AESEncrypter bufEnc = new AESEncrypter(AESKey);
+
+				EncryptedMessage bufSend = bufEnc.encrypt(buf);
+
+				message.addObject(bufSend);
+				message.addObject(new Integer(n));
+				
+				output.writeObject(message);
+				
+				env = (Envelope)input.readObject();
+								
+			 } while (fis.available()>0);		 
+					 
+			 //If server indicates success, return the member list
+			 if(env.getMessage().compareTo("READY") == 0) { 
+				
+				message = new Envelope("EOF");
+				output.writeObject(message);
+				
+				env = (Envelope)input.readObject();
+
+				//Check increment value
+			 	EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+			  	if(!checkIncrement(incrementIn)){
+				  	System.out.println("Client Replay detected");
+				 	System.exit(0);
+				}
+
+				if(env.getMessage().compareTo("OK")==0) {
+					System.out.printf("\nFile data upload successful\n");
+				} else{
+					 System.out.printf("\nUpload failed: %s\n", env.getMessage());
+					 return false;
+				}
+
+			} else {
+				 System.out.printf("Upload failed: %s\n", env.getMessage());
+				 //Check increment value
+			 	 EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+			  	 if(!checkIncrement(incrementIn)){
+				  	System.out.println("Client Replay detected");
+				 	System.exit(0);
+				 }
+				 return false;
+			 }
+			 
+		 } catch(Exception e1){
+			System.err.println("Error: " + e1.getMessage());
+			e1.printStackTrace(System.err);
+			return false;
+		 }
+
 		 return true;
 	}
 
@@ -283,113 +408,6 @@ public class FileClient extends Client implements FileClientInterface {
 				e.printStackTrace(System.err);
 				return null;
 			}
-	}
-
-	public boolean upload(String sourceFile, String destFile, String group,
-			EncryptedToken token) {
-			
-		if (destFile.charAt(0)!='/') {
-			 destFile = "/" + destFile;
-		 }
-		
-		try
-		 {
-			 
-		 	//Encrypt Everything
-		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
-		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
-
-		 	EncryptedMessage dest = destEnc.encrypt(destFile);
-		 	EncryptedMessage _group = groupEnc.encrypt(group);
-
-			 Envelope message = null, env = null;
-			 //Tell the server to return the member list
-			 message = new Envelope("UPLOADF");
-			 message.addObject(dest);
-			 message.addObject(_group);
-			 message.addObject(token); //Add requester's token
-			 output.writeObject(message);
-			
-			 
-			 FileInputStream fis = new FileInputStream(sourceFile);
-			 
-			 env = (Envelope)input.readObject();
-			 
-			 //If server indicates success, return the member list
-			 if(env.getMessage().equals("READY"))
-			 { 
-				System.out.printf("Meta data upload successful\n");
-				
-			}
-			 else {
-				
-				 System.out.printf("Upload failed: %s\n", env.getMessage());
-				 return false;
-			 }
-			 
-		 	
-			 do {
-				 byte[] buf = new byte[4096];
-				 	if (env.getMessage().compareTo("READY")!=0) {
-				 		System.out.printf("Server error: %s\n", env.getMessage());
-				 		return false;
-				 	}
-				 	message = new Envelope("CHUNK");
-					int n = fis.read(buf); //can throw an IOException
-					if (n > 0) {
-						System.out.printf(".");
-					} else if (n < 0) {
-						System.out.println("Read error");
-						return false;
-					}
-					
-					AESEncrypter bufEnc = new AESEncrypter(AESKey);
-
-					EncryptedMessage bufSend = bufEnc.encrypt(buf);
-
-					message.addObject(bufSend);
-					message.addObject(new Integer(n));
-					
-					output.writeObject(message);
-					
-					
-					env = (Envelope)input.readObject();
-					
-										
-			 }
-			 while (fis.available()>0);		 
-					 
-			 //If server indicates success, return the member list
-			 if(env.getMessage().compareTo("READY")==0)
-			 { 
-				
-				message = new Envelope("EOF");
-				output.writeObject(message);
-				
-				env = (Envelope)input.readObject();
-				if(env.getMessage().compareTo("OK")==0) {
-					System.out.printf("\nFile data upload successful\n");
-				}
-				else {
-					
-					 System.out.printf("\nUpload failed: %s\n", env.getMessage());
-					 return false;
-				 }
-				
-			}
-			 else {
-				
-				 System.out.printf("Upload failed: %s\n", env.getMessage());
-				 return false;
-			 }
-			 
-		 }catch(Exception e1)
-			{
-				System.err.println("Error: " + e1.getMessage());
-				e1.printStackTrace(System.err);
-				return false;
-				}
-		 return true;
 	}
 
 	//Diffie-Hellman exchange to create shared AES session key

@@ -187,6 +187,12 @@ public class FileThread extends Thread
 							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
 							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
 							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+							//Check increment
+							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(3);
+							if(!checkIncrement(increment)){
+								System.out.println("Server Replay detected");
+								System.exit(0);
+							}
 
 							AESDecrypter patDec = new AESDecrypter(AESKey);
 							AESDecrypter groupDec = new AESDecrypter(AESKey);
@@ -252,7 +258,9 @@ public class FileThread extends Thread
 							}
 						}
 					}
-
+					//Increment
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 
@@ -260,6 +268,12 @@ public class FileThread extends Thread
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
+					//Check increment
+					EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(2);
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
 
 					EncryptedMessage tokenP = encTok.getToken();
 					EncryptedMessage sigP = encTok.getSignature();
@@ -285,12 +299,16 @@ public class FileThread extends Thread
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_FILEMISSING");
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
 						e = new Envelope("ERROR_PERMISSION");
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 					}
 					else {
@@ -301,6 +319,8 @@ public class FileThread extends Thread
 						if (!f.exists()) {
 							System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
 							e = new Envelope("ERROR_NOTONDISK");
+							EncryptedMessage incrementSend = increment();
+							e.addObject(incrementSend);
 							output.writeObject(e);
 
 						}
@@ -339,6 +359,8 @@ public class FileThread extends Thread
 							{
 
 								e = new Envelope("EOF");
+								EncryptedMessage incrementSend = increment();
+								e.addObject(incrementSend);
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -347,14 +369,14 @@ public class FileThread extends Thread
 								}
 								else {
 
-									System.out.printf("Upload failed: %s\n", e.getMessage());
+									System.out.printf("Download failed: %s\n", e.getMessage());
 
 								}
 
 							}
 							else {
 
-								System.out.printf("Upload failed: %s\n", e.getMessage());
+								System.out.printf("Download failed: %s\n", e.getMessage());
 
 							}
 						}
@@ -564,9 +586,6 @@ public class FileThread extends Thread
 		AESDecrypter aesDecr = new AESDecrypter(AESKey);
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
-
-		System.out.println("IncrementStored: " + incrementVal);
-		System.out.println("IncrementSent: " + incrementSent);
 
 		if(incrementVal != incrementSent){
 			return false;

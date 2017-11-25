@@ -113,7 +113,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 		//Decrypt the increment value
 		AESDecrypter valDecr = new AESDecrypter(AESKey);
 		incrementVal = valDecr.decryptInt(encryptedVal);
-		System.out.println("CLIENT" + incrementVal);
 	}
 
 	 public EncryptedToken getToken(String username, String fileServer, int filePort){
