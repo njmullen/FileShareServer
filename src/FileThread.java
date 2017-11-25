@@ -65,7 +65,7 @@ public class FileThread extends Thread
 				// Handler to list files that this user is allowed to see
 				if(e.getMessage().equals("LFILES"))
 				{
-				    if(e.getObjContents().size() != 1){
+				    if(e.getObjContents().size() != 2){
 				    	response = new Envelope("FAIL-BADCONTENTS");
 				    }
 				    else{
@@ -75,6 +75,12 @@ public class FileThread extends Thread
 				    	else{
 				    		//Decrypt the Token and verify its signature
 				    		EncryptedToken yourToken = (EncryptedToken)e.getObjContents().get(0);
+				    		//Check increment
+							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(1);
+							if(!checkIncrement(increment)){
+								System.out.println("Server Replay detected");
+								System.exit(0);
+							}
 
 				    		EncryptedMessage tokenPart = yourToken.getToken();
 				    		EncryptedMessage sigPart = yourToken.getSignature();
@@ -125,7 +131,9 @@ public class FileThread extends Thread
 							}
 
 				    		System.out.printf("Successfully generated file list\n");
-				    						    		
+				    		//Increment
+							EncryptedMessage incrementSend = increment();
+							response.addObject(incrementSend);
 				    		output.writeObject(response);
 				    	}
 				    }
@@ -152,7 +160,13 @@ public class FileThread extends Thread
 
 							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
 							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
-							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);	
+							//Check increment
+							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(3);
+							if(!checkIncrement(increment)){
+								System.out.println("Server Replay detected");
+								System.exit(0);
+							}
 
 							AESDecrypter patDec = new AESDecrypter(AESKey);
 							AESDecrypter groupDec = new AESDecrypter(AESKey);
@@ -227,13 +241,22 @@ public class FileThread extends Thread
 							}
 						}
 					}
-
+					//Increment
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
+
+					//Check increment
+					EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(2);
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
 
 					EncryptedMessage tokenP = encTok.getToken();
 					EncryptedMessage sigP = encTok.getSignature();
@@ -268,12 +291,18 @@ public class FileThread extends Thread
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_FILEMISSING");
+						//Increment
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
 						e = new Envelope("ERROR_PERMISSION");
+						//Increment
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 					}
 					else {
@@ -284,6 +313,9 @@ public class FileThread extends Thread
 						if (!f.exists()) {
 							System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
 							e = new Envelope("ERROR_NOTONDISK");
+							//Increment
+							EncryptedMessage incrementSend = increment();
+							e.addObject(incrementSend);
 							output.writeObject(e);
 
 						}
@@ -322,6 +354,10 @@ public class FileThread extends Thread
 							{
 
 								e = new Envelope("EOF");
+								//Increment
+								EncryptedMessage incrementSend = increment();
+								e.addObject(incrementSend);
+								output.writeObject(e);
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();

@@ -136,6 +136,7 @@ public class FileClient extends Client implements FileClientInterface {
 		Envelope env = new Envelope("DELETEF"); //Success
 	    env.addObject(encryptedFile);
 	    env.addObject(token);
+
 	    //Add increment value
 		EncryptedMessage increment = increment();
 		env.addObject(increment);
@@ -167,6 +168,8 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
+	//**TO DO : All below this line (download, upload, list files)**//
+
 	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
@@ -185,6 +188,11 @@ public class FileClient extends Client implements FileClientInterface {
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
+
+			    //Add increment value
+				EncryptedMessage increment = increment();
+				env.addObject(increment);
+
 			    output.writeObject(env); 
 			
 			    env = (Envelope)input.readObject();
@@ -238,6 +246,10 @@ public class FileClient extends Client implements FileClientInterface {
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
 			 message.addObject(token); //Add requester's token
+
+			 //Add increment value
+			 EncryptedMessage increment = increment();
+			 message.addObject(increment);
 			 output.writeObject(message); 
 			 
 			 e = (Envelope)input.readObject();
@@ -291,6 +303,11 @@ public class FileClient extends Client implements FileClientInterface {
 			 message.addObject(dest);
 			 message.addObject(_group);
 			 message.addObject(token); //Add requester's token
+
+			 //Add increment value
+			 EncryptedMessage increment = increment();
+			 message.addObject(increment);
+
 			 output.writeObject(message);
 			
 			 
