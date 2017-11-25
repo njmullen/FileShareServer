@@ -192,10 +192,19 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			response = (Envelope)input.readObject();
 			if(response.getMessage().equals("OK")){
+				//Gets the S and verifies its signature
 				BigInteger S = (BigInteger)response.getObjContents().get(0);
-				//Grabs the encrypted increment value which will be decrypted
-				//once the client calculates the shared AES key
-				encryptedVal = (EncryptedMessage)response.getObjContents().get(1);
+				byte[] sSigned = (byte[])response.getObjContents().get(1);
+
+				Signature dhSig = Signature.getInstance("RSA");
+				dhSig.initVerify(groupKey);
+				dhSig.update(S.toByteArray());
+				if(!dhSig.verify(sSigned)){
+					System.out.println("Unable to verify DH signature");
+					System.exit(0);
+				}
+
+				encryptedVal = (EncryptedMessage)response.getObjContents().get(2);
 				return S;
 			}
 			return null;

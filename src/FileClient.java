@@ -24,6 +24,7 @@ public class FileClient extends Client implements FileClientInterface {
 	private Key AESKey = null;
 	private int incrementVal = 0;
 	private EncryptedMessage encryptedVal = null;
+	private PublicKey fileServerKey = null;
 
 	public void setAESKey(Key key){
 		AESKey = key;
@@ -79,24 +80,25 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public PublicKey getPublicKey(){
-		byte[] publicKeyBytes = null;
-		PublicKey publicKey = null;
+		Envelope message = null;
+		Envelope response = null;
+		PublicKey publicKey;
 
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			File publicKeyFile = new File("filePublicKey");
-			FileInputStream input = new FileInputStream(publicKeyFile);
-			publicKeyBytes = new byte[input.available()];
-			input.read(publicKeyBytes);
-			input.close();
+		try{
+			message = new Envelope("GETPUBLICKEY");
+			output.writeObject(message);
 
-			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-			publicKey = keyFactory.generatePublic(publicKeySpec);
-		} catch (Exception ex){
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("KEY")){
+				publicKey = (PublicKey)response.getObjContents().get(0);
+				fileServerKey = publicKey;
+				return publicKey;
+			}
+		} catch(Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKey;
+		return null;
 	}
 
 	public EncryptedMessage increment(){
@@ -403,10 +405,21 @@ public class FileClient extends Client implements FileClientInterface {
 
 			response = (Envelope)input.readObject();
 			if(response.getMessage().equals("OK")){
+				//Gets the S and verifies its signature
 				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				byte[] sSigned = (byte[])response.getObjContents().get(1);
+
+				Signature dhSig = Signature.getInstance("RSA");
+				dhSig.initVerify(fileServerKey);
+				dhSig.update(S.toByteArray());
+				if(!dhSig.verify(sSigned)){
+					System.out.println("Unable to verify DH signature");
+					System.exit(0);
+				}
+
 				//Grabs the encrypted increment value which will be decrypted
 				//once the client calculates the shared AES key
-				encryptedVal = (EncryptedMessage)response.getObjContents().get(1);
+				encryptedVal = (EncryptedMessage)response.getObjContents().get(2);
 				return S;
 			}
 			return null;
