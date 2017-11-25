@@ -160,13 +160,7 @@ public class FileThread extends Thread
 
 							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
 							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
-							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);	
-							//Check increment
-							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(3);
-							if(!checkIncrement(increment)){
-								System.out.println("Server Replay detected");
-								System.exit(0);
-							}
+							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
 
 							AESDecrypter patDec = new AESDecrypter(AESKey);
 							AESDecrypter groupDec = new AESDecrypter(AESKey);
@@ -188,15 +182,6 @@ public class FileThread extends Thread
 							}
 
 							Token yourToken = new Token(tokBytes);
-
-							//Verify that token is good for this port/server
-				    		String tokenServer = yourToken.getFileServer();
-				    		int tokenPort = yourToken.getFilePort();
-
-				    		if(!serverName.equals(tokenServer) || port != tokenPort){
-				    			System.out.println("Token invalid for this server");
-				    			System.exit(0);
-				    		}
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -241,22 +226,14 @@ public class FileThread extends Thread
 							}
 						}
 					}
-					//Increment
-					EncryptedMessage incrementSend = increment();
-					response.addObject(incrementSend);
+
 					output.writeObject(response);
 				}
+
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
-
-					//Check increment
-					EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(2);
-					if(!checkIncrement(increment)){
-						System.out.println("Server Replay detected");
-						System.exit(0);
-					}
 
 					EncryptedMessage tokenP = encTok.getToken();
 					EncryptedMessage sigP = encTok.getSignature();
@@ -276,33 +253,18 @@ public class FileThread extends Thread
 					String remotePath = remDec.decrypt(encRemPat);
 
 					Token t = new Token(tokBytes);
-
-					//Verify that token is good for this port/server
-		    		String tokenServer = t.getFileServer();
-		    		int tokenPort = t.getFilePort();
-
-		    		if(!serverName.equals(tokenServer) || port != tokenPort){
-		    			System.out.println("Token invalid for this server");
-		    			System.exit(0);
-		    		}
 					
 					
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_FILEMISSING");
-						//Increment
-						EncryptedMessage incrementSend = increment();
-						e.addObject(incrementSend);
 						output.writeObject(e);
 
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
 						e = new Envelope("ERROR_PERMISSION");
-						//Increment
-						EncryptedMessage incrementSend = increment();
-						e.addObject(incrementSend);
 						output.writeObject(e);
 					}
 					else {
@@ -313,9 +275,6 @@ public class FileThread extends Thread
 						if (!f.exists()) {
 							System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
 							e = new Envelope("ERROR_NOTONDISK");
-							//Increment
-							EncryptedMessage incrementSend = increment();
-							e.addObject(incrementSend);
 							output.writeObject(e);
 
 						}
@@ -354,10 +313,6 @@ public class FileThread extends Thread
 							{
 
 								e = new Envelope("EOF");
-								//Increment
-								EncryptedMessage incrementSend = increment();
-								e.addObject(incrementSend);
-								output.writeObject(e);
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -565,6 +520,9 @@ public class FileThread extends Thread
 		AESDecrypter aesDecr = new AESDecrypter(AESKey);
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
+
+		System.out.println("IncrementStored: " + incrementVal);
+		System.out.println("IncrementSent: " + incrementSent);
 
 		if(incrementVal != incrementSent){
 			return false;

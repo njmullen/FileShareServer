@@ -168,9 +168,8 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	//**TO DO : All below this line (download, upload, list files)**//
-
 	public boolean download(String sourceFile, String destFile, EncryptedToken token) {
+		System.out.println("FUCK");
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -178,6 +177,7 @@ public class FileClient extends Client implements FileClientInterface {
 		File file = new File(destFile);
 	    try {
 	    				
+			System.out.println("Download");
 		    if (!file.exists()) {
 		    	file.createNewFile();
 			    FileOutputStream fos = new FileOutputStream(file);
@@ -188,11 +188,6 @@ public class FileClient extends Client implements FileClientInterface {
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
-
-			    //Add increment value
-				EncryptedMessage increment = increment();
-				env.addObject(increment);
-
 			    output.writeObject(env); 
 			
 			    env = (Envelope)input.readObject();
@@ -254,18 +249,26 @@ public class FileClient extends Client implements FileClientInterface {
 			 
 			 e = (Envelope)input.readObject();
 
-
 			 //If server indicates success, return the member list
+			 int listSize = 0;
 			 if(e.getMessage().equals("OK"))
 			 { 
-				int size = (int)e.getObjContents().get(0);
+				listSize = (int)e.getObjContents().get(0);
 				List<String> fileList = new ArrayList<String>();
-				for(int i = 1; i < size + 1; i++){
+				for(int i = 1; i < listSize + 1; i++){
 			 		EncryptedMessage encList = (EncryptedMessage)e.getObjContents().get(i);
 			 		AESDecrypter listDecr = new AESDecrypter(AESKey);
 			 		String thisMember = listDecr.decrypt(encList);
 			 		fileList.add(thisMember);
 			 	}
+
+			 	//Check increment value
+			 	EncryptedMessage incrementIn = (EncryptedMessage)e.getObjContents().get(listSize + 1);
+			  	if(!checkIncrement(incrementIn)){
+				  	System.out.println("Client Replay detected");
+				 	System.exit(0);
+				}
+
 			 	return fileList;
 			 }
 				
@@ -303,11 +306,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 message.addObject(dest);
 			 message.addObject(_group);
 			 message.addObject(token); //Add requester's token
-
-			 //Add increment value
-			 EncryptedMessage increment = increment();
-			 message.addObject(increment);
-
 			 output.writeObject(message);
 			
 			 
