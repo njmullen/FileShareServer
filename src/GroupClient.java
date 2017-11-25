@@ -155,7 +155,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				System.exit(0);
 			}
 	 		if(response.getMessage().equals("OK")){
-	 			//Decrypt the token and signature 
+
+	 			//Decrypt the token and signature
 	 			tokenObj = (EncryptedToken)response.getObjContents().get(0);
 	 			EncryptedMessage tokenIn = tokenObj.getToken();
 				EncryptedMessage signIn = tokenObj.getSignature();
@@ -169,29 +170,20 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 			Signature signature = Signature.getInstance("RSA");
 	 			signature.initVerify(groupKey);
 	 			signature.update(tokenBytes);
-	 			if (signature.verify(signBytes)){
-	 				return tokenObj;
-	 			} else {
-	 				System.exit(0);
-	 			}
+				if (!signature.verify(signBytes)){
+					System.out.println("ERROR: Message tampered with, token signature does not match. Exiting....");
+					System.exit(0);
+				}
 
 	 			//Decrypt the list of group keys
 	 			ArrayList<EncryptedGroupKey> encList = (ArrayList<EncryptedGroupKey>)response.getObjContents().get(1);
 
-	 			//TROUBLESHOOTING:
-	 			System.out.printf(">>>EncList Size = " + encList.size() + "\n");
-
 	 			groupKeys = new ArrayList<GroupKey>();
 	 			for(int i = 0; i < encList.size(); i++){
 	 				groupKeys.add(encList.get(i).getDecrypted(AESKey));
-	 				//TROUBLESHOOTING
-	 				System.out.printf(groupKeys.get(i).getName() + " -> " + groupKeys.get(i).getKey() + "\n");
 	 			}
+				return tokenObj;
 
-	 			//TROUBLESHOOTING
-	 			if(encList.size() == 0){
-	 				groupKeys.add(new GroupKey("zero", null));
-	 			}
 	 		}
 
 	 	} catch(Exception ex){
@@ -430,7 +422,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				message.addObject(increment);
 
 				output.writeObject(message);
-			
+
 				response = (Envelope)input.readObject();
 				//Check increment value
 				EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
@@ -648,8 +640,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 }
 
 	public ArrayList<GroupKey> getGroupKeys(){
-		//TROUBLESHOOTING
-		System.out.printf("\n\n>>>SENT IT!!!\n\n");
 		return groupKeys;
 	}
 }

@@ -26,7 +26,7 @@ public class RunUI {
     Scanner scan = new Scanner(System.in);
     GroupClient gc = new GroupClient();
     FileClient fc = new FileClient();
-    
+
     EncryptedToken token = null;
     byte[] tokenBytes = null;
     String tokenSig = null;
@@ -315,7 +315,7 @@ public class RunUI {
 
         //Give key to client
         fc.setAESKey(fsAESKey);
-        
+
         //After the FileServer is connected to and authenticated, connect the FileServer
         //to the GroupServer to get its public key to verify tokens.
         boolean fileGroupKeyExchange = fc.getGroupServerKey(groupServerChoice, groupPort);
@@ -377,7 +377,7 @@ public class RunUI {
         System.out.println("Invalid username");
         gc.disconnect();
           System.exit(0);
-    } 
+    }
 
     //Asks the user if they want to make operations on files or on groups and connects then
     //displays the appropriate menu (group menu/file menu) for group or file operations
@@ -440,18 +440,10 @@ public class RunUI {
                         System.out.println("Enter the group name: ");
                         String groupName = checkForPipe(scan);
                         if(gc.createGroup(groupName, token)){
-                            token = gc.getToken(username, fileServerChoice, filePort);
                             System.out.println(groupName + " succesfully created!");
                         } else {
                             System.out.println("Error! Unable to create " + groupName);
                         }
-                        groupKeys = gc.getGroupKeys();
-                        System.out.println("Group Keys Size = " + groupKeys.size());
-                        //TROUBLESHOOTING:
-                        for(int i = 0; i < groupKeys.size(); i++){
-                            System.out.println(groupKeys.get(i).getName() + " -> " + groupKeys.get(i).getKey() + "\n");
-                        }
-
                         break;
                     //List members of a group
                     case 4:
@@ -511,8 +503,9 @@ public class RunUI {
                         System.out.println("Invalid input: Please select an option 0-7");
                         break;
                 }
-                //Refresh the user token
+                //Refresh the user token and group keys (necessary for cgroup / delete user)
                 token = gc.getToken(username, fileServerChoice, filePort);
+                groupKeys = gc.getGroupKeys();
             }
         }
         //FileServer Menu Handling
@@ -603,7 +596,7 @@ public class RunUI {
                     default:
                         System.out.println("Invalid input: Please select an option 0-4");
                         break;
-                    }   
+                    }
             }
         }
     }

@@ -155,18 +155,10 @@ public class GroupThread extends Thread
 						//Generate list of encrypted group keys to send to user
 						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
 
-						//TROUBLESHOOTING:
-						System.out.printf("Group Keys Size = " + groupKeys.size() + "\n");
-
 						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
 						for(int i = 0; i < groupKeys.size(); i++){
 							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));
 						}
-						
-
-						//TROUBLESHOOTING:
-						System.out.printf("Enc Group Keys Size = " + encGroupKeys.size() + "\n");
-
 						response.addObject(encGroupKeys);
 
 
@@ -253,7 +245,7 @@ public class GroupThread extends Thread
 								if(!checkIncrement(increment)){
 									System.out.println("DUSER Server Replay detected");
 									System.exit(0);
-								}	
+								}
 								if(!verifySignature(tokenIn, signIn)){
 									System.out.println("Token error");
 									System.exit(0);
@@ -544,9 +536,9 @@ public class GroupThread extends Thread
 				{
 					socket.close(); //Close the socket
 					proceed = false; //End this communication loop
-				} 
+				}
 				else if(message.getMessage().equals("CHECKPWD")) //Client wants to check a password
-				{ 
+				{
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
@@ -586,7 +578,7 @@ public class GroupThread extends Thread
 					response.addObject(incrementSend);
 
 					output.writeObject(response);
-				} 
+				}
 				else if (message.getMessage().equals("DH")) //Client wants to perform a Diffie-Hellman exchange
 				{
 					if(message.getObjContents().size() < 3){
@@ -629,7 +621,7 @@ public class GroupThread extends Thread
 				 	response.addObject(value);
 
 				 	output.writeObject(response);
-				} 
+				}
 				else if (message.getMessage().equals("GETPUBLICKEY")) //Client wants public key of server
 				{
 					response = new Envelope("KEY");
@@ -842,34 +834,8 @@ public class GroupThread extends Thread
 			//Otherwise, add ownership of this group to requester and group to this user
 			my_gs.userList.addGroup(requester, groupname);
 			my_gs.userList.addOwnership(requester, groupname);
-
-			//Generate 128-bit AES key for file encryption 
-			try{
-				KeyGenerator keyGen = KeyGenerator.getInstance("AES", "BC");
-				keyGen.init(128);
-				SecretKey key = keyGen.generateKey();
-
-				//Write key to file
-				//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
-				FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
-				byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
-				// String format = key.getFormat();
-				groupKeyWrite.write(groupname.getBytes());
-				// groupKeyWrite.write(new String("|").getBytes());
-				// groupKeyWrite.write(format.getBytes());
-				groupKeyWrite.write(new String("|").getBytes());
-				groupKeyWrite.write(keyBytes);
-				groupKeyWrite.write(new String("|").getBytes());
-				groupKeyWrite.close();
-			}
-			catch (Exception ex){
-				ex.printStackTrace();
-			}
-			
-
+			genNewGroupKey(groupname);
 			yourToken = createToken(requester, yourToken.getFileServer(), yourToken.getFilePort());
-
-			List<String> userGroups = yourToken.getGroups();
 			return true;
 		} else {
 			//User does not exist
@@ -912,6 +878,8 @@ public class GroupThread extends Thread
 				//Check that user belongs to group
 				if(my_gs.userList.getUserGroups(username).contains(groupname)){
 					my_gs.userList.removeGroup(username, groupname);
+					genNewGroupKey(groupname);
+					yourToken = createToken(requester, yourToken.getFileServer(), yourToken.getFilePort());
 					return true;
 				} else {
 					//Doesn't belong
@@ -993,7 +961,7 @@ public class GroupThread extends Thread
 		catch(Exception ex){
 			ex.printStackTrace();
 		}
-		
+
 		//Parse file text to compile a list of applicable keys
 		ArrayList<GroupKey> keyList = new ArrayList<GroupKey>();
 		StringBuilder name = new StringBuilder();
@@ -1012,7 +980,7 @@ public class GroupThread extends Thread
 				char c = (char) allBytes[i++];
 				if(c == '|'){ //Reached the end of the group name
 
-					//Check if group name is in the list of groups the user belongs to 
+					//Check if group name is in the list of groups the user belongs to
 					if(groupNames.contains(name.toString())){
 						parsingName = false;
 					}
@@ -1042,7 +1010,7 @@ public class GroupThread extends Thread
 			// 	}
 			// }
 
-			//Parse key 
+			//Parse key
 			else{
 				//Fill new byte[] with Base64 encoded key bytes
 				byte[] keyBytes = new byte[24];
@@ -1053,7 +1021,7 @@ public class GroupThread extends Thread
 					keyBytes[k++] = allBytes[i++];
 				}
 
-				//Check that next character is the delimeter 
+				//Check that next character is the delimeter
 				if((char) allBytes[i++] != '|'){
 					System.out.printf("\n>>>Something went wrong while parsing group key\n");
 					System.out.printf(">>>Group Name: " + name.toString() + "\n");
@@ -1069,12 +1037,37 @@ public class GroupThread extends Thread
 				//Create new GroupKey and add to list
 				keyList.add(new GroupKey(name.toString(), key));
 
-				//Flush name 
+				//Flush name
 				name = new StringBuilder();
 				parsingName = true;
 			}
 		}
 
 		return keyList;
+	}
+	private void genNewGroupKey(String groupname) {
+		//Generate 128-bit AES key for file encryption
+		try{
+			KeyGenerator keyGen = KeyGenerator.getInstance("AES", "BC");
+			keyGen.init(128);
+			SecretKey key = keyGen.generateKey();
+
+			//TODO: What if the group name has '/' in it? filesystems hate that shit
+			//Write key to file
+			//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
+			FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
+			byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
+			// String format = key.getFormat();
+			groupKeyWrite.write(groupname.getBytes());
+			// groupKeyWrite.write(new String("|").getBytes());
+			// groupKeyWrite.write(format.getBytes());
+			groupKeyWrite.write(new String("|").getBytes());
+			groupKeyWrite.write(keyBytes);
+			groupKeyWrite.write(new String("|").getBytes());
+			groupKeyWrite.close();
+		}
+		catch (Exception ex){
+			ex.printStackTrace();
+		}
 	}
 }
