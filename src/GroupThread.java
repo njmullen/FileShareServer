@@ -151,13 +151,16 @@ public class GroupThread extends Thread
 
 						response.addObject(encryptedToken);
 
-						//HERE
 						//Generate list of encrypted group keys to send to user
 						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
+
+						// Print out groupnames that server knows of
+						// TROUBLESHOOTING
 						System.out.println("GroupKeySize in thead "+groupKeys.size());
 						for( GroupKey k : groupKeys ) {
 							System.out.println(k.getName());
 						}
+
 						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
 						for(int i = 0; i < groupKeys.size(); i++){
 							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));

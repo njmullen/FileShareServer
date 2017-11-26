@@ -178,12 +178,13 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 			//Decrypt the list of group keys
 	 			ArrayList<EncryptedGroupKey> encList = (ArrayList<EncryptedGroupKey>)response.getObjContents().get(1);
 
-				// System.out.println("Enclist from groupthead "+encList.size());
-				//TROUBLESHOOTING
+
 	 			groupKeys = new ArrayList<GroupKey>();
 	 			for(int i = 0; i < encList.size(); i++){
 	 				groupKeys.add(encList.get(i).getDecrypted(AESKey));
 	 			}
+				// System.out.println("Enclist from groupthead "+encList.size());
+				//TROUBLESHOOTING
 				// System.out.println("GroupKeySize in client "+groupKeys.size());
 				// for( GroupKey k : groupKeys ) {
 				// 	System.out.println(k.getName());

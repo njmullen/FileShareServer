@@ -300,14 +300,11 @@ public class FileThread extends Thread
 							EncryptedMessage encGroup = groupEnc.encrypt(sf.getGroup());
 							e = new Envelope("GROUP");
 							e.addObject(encGroup);
+							output.writeObject(e);
 							FileInputStream fis = new FileInputStream(f);
 
 							do {
 								byte[] buf = new byte[4096];
-								if (e.getMessage().compareTo("DOWNLOADF")!=0) {
-									System.out.printf("Server error: %s\n", e.getMessage());
-									break;
-								}
 
 								e = new Envelope("CHUNK");
 								int n = fis.read(buf); //can throw an IOException
@@ -326,6 +323,10 @@ public class FileThread extends Thread
 
 								e = (Envelope)input.readObject();
 
+								if (e.getMessage().compareTo("DOWNLOADF")!=0) {
+									System.out.printf("Server error: %s\n", e.getMessage());
+									break;
+								}
 
 							}
 							while (fis.available()>0);

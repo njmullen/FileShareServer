@@ -176,8 +176,6 @@ public class FileClient extends Client implements FileClientInterface {
 
 		File file = new File(destFile);
 	    try {
-
-		    if (!file.exists()) {
 		    	file.createNewFile();
 			    FileOutputStream fos = new FileOutputStream(file);
 
@@ -200,6 +198,7 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 				else{
 					System.out.printf("Error: Could not retrieve group for file");
+					System.out.printf("Message contents: %s\n", env.getMessage());
 				}
 
 				//Grab group key from list
@@ -280,16 +279,9 @@ public class FileClient extends Client implements FileClientInterface {
 						file.delete();
 						return false;
 				}
-		    }
-
-		    else {
-				System.out.printf("Error couldn't create file %s\n", destFile);
-				return false;
-		    }
-
 
 	    } catch (IOException e1) {
-
+				e1.printStackTrace();
 	    	System.out.printf("Error couldn't create file %s\n", destFile);
 	    	return false;
 
@@ -388,12 +380,11 @@ public class FileClient extends Client implements FileClientInterface {
 				ex.printStackTrace();
 			}
 
+			//TODO: Use most recent key for group, not just any key related to group
 			//Find group key in list
 			//Finds first Group key then encrypts with it.
 			SecretKey groupKey = null;
-			System.out.println("GroupKeySize = "+groupKeys.size());
 			for(int i = 0; i < groupKeys.size(); i++){
-				System.out.println("GroupKey= "+i+" "+groupKeys.get(i).getName());
 				if(groupKeys.get(i).getName().compareTo(group) == 0){
 					groupKey = groupKeys.get(i).getKey();
 					break;
