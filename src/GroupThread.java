@@ -89,11 +89,11 @@ public class GroupThread extends Thread
 					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
 					String username = aesDecrypter.decrypt(usernameEnc);
 
-					EncryptedMessage fileServerEnc = (EncryptedMessage)message.getObjContents().get(1); //Get the username
+					EncryptedMessage fileServerEnc = (EncryptedMessage)message.getObjContents().get(1); //Get the Fileserver name
 					AESDecrypter fileServerDecr = new AESDecrypter(AESKey);
 					String fileServer = fileServerDecr.decrypt(fileServerEnc);
 
-					EncryptedMessage filePortEnc = (EncryptedMessage)message.getObjContents().get(2); //Get the username
+					EncryptedMessage filePortEnc = (EncryptedMessage)message.getObjContents().get(2); //Get the File port
 					AESDecrypter filePortDecr = new AESDecrypter(AESKey);
 					String filePortString = filePortDecr.decrypt(filePortEnc);
 					int filePort = Integer.parseInt(filePortString);
@@ -125,7 +125,6 @@ public class GroupThread extends Thread
 						for (int i = 0; i < groupList.size(); i++){
 							newGroupList.add(groupList.get(i));
 						}
-
 						Token token = new Token(issuer, subject, newGroupList, fileServerT, filePortT);
 
 						//Respond to the client. On error, the client will receive a null token
@@ -152,13 +151,18 @@ public class GroupThread extends Thread
 
 						response.addObject(encryptedToken);
 
+						//HERE
 						//Generate list of encrypted group keys to send to user
 						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
-
+						System.out.println("GroupKeySize in thead "+groupKeys.size());
+						for( GroupKey k : groupKeys ) {
+							System.out.println(k.getName());
+						}
 						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
 						for(int i = 0; i < groupKeys.size(); i++){
 							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));
 						}
+
 						response.addObject(encGroupKeys);
 
 
@@ -991,7 +995,7 @@ public class GroupThread extends Thread
 						while(c != '|'){
 							c = (char) allBytes[i++];
 						}
-						i++;
+
 					}
 				}
 				else{
@@ -1052,7 +1056,6 @@ public class GroupThread extends Thread
 			keyGen.init(128);
 			SecretKey key = keyGen.generateKey();
 
-			//TODO: What if the group name has '/' in it? filesystems hate that shit
 			//Write key to file
 			//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
 			FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);

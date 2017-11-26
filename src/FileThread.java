@@ -176,17 +176,17 @@ public class FileThread extends Thread
 							Token yourToken = new Token(tokBytes);
 
 							//Verify that token is good for this port/server
-				    		String tokenServer = yourToken.getFileServer();
-				    		int tokenPort = yourToken.getFilePort();
+			    		String tokenServer = yourToken.getFileServer();
+			    		int tokenPort = yourToken.getFilePort();
 
-				    		// if(!serverName.equals(tokenServer) || port != tokenPort){
-				    		// 	System.out.println("Token invalid for this server");
-				    		// 	System.out.println(">>Server Name = " + serverName);
-				    		// 	System.out.println(">>Token Server = " + tokenServer);
-				    		// 	System.out.println(">>Port = " + port);
-				    		// 	System.out.println(">>Token Port = " + tokenPort);
-				    		// 	System.exit(0);
-				    		// }
+			    		if(!serverName.equals(tokenServer) || port != tokenPort){
+			    			System.out.println("Token invalid for this server");
+			    			System.out.println(">>Server Name = " + serverName);
+			    			System.out.println(">>Token Server = " + tokenServer);
+			    			System.out.println(">>Port = " + port);
+			    			System.out.println(">>Token Port = " + tokenPort);
+			    			System.exit(0);
+			    		}
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);

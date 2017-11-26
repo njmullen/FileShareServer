@@ -56,7 +56,7 @@ public class RunUI {
     int groupPort = 8765;
     int filePort = 4321;
     String groupServerChoice = "localhost";
-    String fileServerChoice = "127.0.0.1";
+    String fileServerChoice = "localhost";
 
     //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
@@ -372,6 +372,11 @@ public class RunUI {
     //said invalid password and kicked user out before this is reached
     token = gc.getToken(username, fileServerChoice, filePort);
     groupKeys = gc.getGroupKeys();
+    //TROUBLESHOOTING
+    System.out.println("GroupKeySize after login "+groupKeys.size());
+    for( GroupKey k : groupKeys ) {
+      System.out.println(k.getName());
+    }
 
     if (token == null){
         System.out.println("Invalid username");
@@ -641,8 +646,8 @@ public class RunUI {
 
   public static String checkForPipe(Scanner scan) {
         String input = scan.next();
-        while(input.contains("|")) {
-          System.out.println("Invalid: Cannot contain \'|\'\nTry again.");
+        while(input.contains("|") || input.contains("/") ) {
+          System.out.println("Invalid: Cannot contain \'|\' or \'/\'\nTry again.");
           input = scan.next();
         }
         return input;
