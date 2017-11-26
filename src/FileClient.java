@@ -152,20 +152,20 @@ public class FileClient extends Client implements FileClientInterface {
 				System.out.println("Client Replay detected");
 				System.exit(0);
 			}
-		    
+
 			if (env.getMessage().compareTo("OK")==0) {
-				System.out.printf("File %s deleted successfully\n", filename);				
+				System.out.printf("File %s deleted successfully\n", filename);
 			}
 			else {
 				System.out.printf("Error deleting file %s (%s)\n", filename, env.getMessage());
 				return false;
-			}			
+			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		} catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
-	    	
+
 		return true;
 	}
 
@@ -176,21 +176,21 @@ public class FileClient extends Client implements FileClientInterface {
 
 		File file = new File(destFile);
 	    try {
-	    				
+
 		    if (!file.exists()) {
 		    	file.createNewFile();
 			    FileOutputStream fos = new FileOutputStream(file);
-			    
+
 			    Envelope env = new Envelope("DOWNLOADF"); //Success
 
 			    AESEncrypter fileEnc = new AESEncrypter(AESKey);
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
-			    output.writeObject(env); 
-			
+			    output.writeObject(env);
+
 			    env = (Envelope)input.readObject();
-			
+
 			    String group = null;
 
 			    //Receive the group from the server
@@ -203,6 +203,7 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 
 				//Grab group key from list
+				//Have to figure out how we'll hash keys and deal with multiple old keys
 				SecretKey groupKey = null;
 				for(int i = 0; i < groupKeys.size(); i++){
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
@@ -220,7 +221,7 @@ public class FileClient extends Client implements FileClientInterface {
 			    byte[] ivBytes = new byte[1];
 			    int ivSize = 0;
 			    StringBuilder encFileSb = new StringBuilder();
-				while (env.getMessage().compareTo("CHUNK")==0) { 
+				while (env.getMessage().compareTo("CHUNK")==0) {
 					byte[] bytesIn = (byte[])env.getObjContents().get(0);
 					int messageSize = (Integer)env.getObjContents().get(1);
 					int ind = 0;
@@ -250,11 +251,11 @@ public class FileClient extends Client implements FileClientInterface {
 						encFileSb.append((char)bytesIn[ind++]);
 					}
 					//fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
-					
+
 					System.out.printf(".");
 					env = new Envelope("DOWNLOADF"); //Success
 					output.writeObject(env);
-					env = (Envelope)input.readObject();									
+					env = (Envelope)input.readObject();
 				}
 
 				//Decrypt and write the file
@@ -267,7 +268,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 				fos.write(decFileBytes);
 				fos.close();
-				
+
 			    if(env.getMessage().compareTo("EOF")==0) {
 			    	 fos.close();
 						System.out.printf("\nTransfer successful file %s\n", sourceFile);
@@ -277,22 +278,22 @@ public class FileClient extends Client implements FileClientInterface {
 				else {
 						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
 						file.delete();
-						return false;								
+						return false;
 				}
-		    }    
-			 
+		    }
+
 		    else {
 				System.out.printf("Error couldn't create file %s\n", destFile);
 				return false;
 		    }
-						
-	
+
+
 	    } catch (IOException e1) {
-	    	
+
 	    	System.out.printf("Error couldn't create file %s\n", destFile);
 	    	return false;
-	    
-			
+
+
 		}
 	    catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
@@ -308,14 +309,14 @@ public class FileClient extends Client implements FileClientInterface {
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
 			 message.addObject(token); //Add requester's token
-			 output.writeObject(message); 
-			 
+			 output.writeObject(message);
+
 			 e = (Envelope)input.readObject();
 
 
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
-			 { 
+			 {
 				int size = (int)e.getObjContents().get(0);
 				List<String> fileList = new ArrayList<String>();
 				for(int i = 1; i < size + 1; i++){
@@ -326,9 +327,9 @@ public class FileClient extends Client implements FileClientInterface {
 			 	}
 			 	return fileList;
 			 }
-				
+
 			 return null;
-			 
+
 		 }
 		 catch(Exception e)
 			{
@@ -340,14 +341,14 @@ public class FileClient extends Client implements FileClientInterface {
 
 	public boolean upload(String sourceFile, String destFile, String group,
 			EncryptedToken token, ArrayList<GroupKey> groupKeys) {
-			
+
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;
 		 }
-		
+
 		try
 		 {
-			 
+
 		 	//Encrypt Everything
 		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
 		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
@@ -362,12 +363,12 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(_group);
 			message.addObject(token); //Add requester's token
 			output.writeObject(message);
-			 
+
 			env = (Envelope)input.readObject();
-			 
+
 			//If server indicates success, return the member list
 			if(env.getMessage().equals("READY"))
-			{ 
+			{
 				System.out.printf("Meta data upload successful\n");
 			}
 			else {
@@ -388,8 +389,11 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 
 			//Find group key in list
+			//Finds first Group key then encrypts with it.
 			SecretKey groupKey = null;
+			System.out.println("GroupKeySize = "+groupKeys.size());
 			for(int i = 0; i < groupKeys.size(); i++){
+				System.out.println("GroupKey= "+i+" "+groupKeys.get(i).getName());
 				if(groupKeys.get(i).getName().compareTo(group) == 0){
 					groupKey = groupKeys.get(i).getKey();
 					break;
@@ -458,40 +462,40 @@ public class FileClient extends Client implements FileClientInterface {
 
 				message.addObject(buf);
 				message.addObject(new Integer(i + 1));
-				
+
 				output.writeObject(message);
-				
-				
+
+
 				env = (Envelope)input.readObject();
-				
-										
+
+
 			 }
-			 while (t < toSend.length);		 
-					 
+			 while (t < toSend.length);
+
 			 //If server indicates success, return the member list
 			 if(env.getMessage().compareTo("READY")==0)
-			 { 
-				
+			 {
+
 				message = new Envelope("EOF");
 				output.writeObject(message);
-				
+
 				env = (Envelope)input.readObject();
 				if(env.getMessage().compareTo("OK")==0) {
 					System.out.printf("\nFile data upload successful\n");
 				}
 				else {
-					
+
 					 System.out.printf("\nUpload failed: %s\n", env.getMessage());
 					 return false;
 				 }
-				
+
 			}
 			 else {
-				
+
 				 System.out.printf("Upload failed: %s\n", env.getMessage());
 				 return false;
 			 }
-			 
+
 		 }catch(Exception e1)
 			{
 				System.err.println("Error: " + e1.getMessage());
@@ -525,10 +529,9 @@ public class FileClient extends Client implements FileClientInterface {
 	 	} catch (Exception ex){
 	 		ex.printStackTrace();
 	 	}
-	 	
+
 	 	return null;
 	 }
 
 
 }
-

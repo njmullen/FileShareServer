@@ -44,7 +44,7 @@ public class FileThread extends Thread
 		//Check next line, see above
 		serverName = socket.getInetAddress().getHostName();
 		port = socket.getLocalPort();
-		
+
 	}
 
 	public void run()
@@ -103,7 +103,7 @@ public class FileThread extends Thread
 
 				    		ArrayList<ShareFile> fullList = new ArrayList<ShareFile>(FileServer.fileList.getFiles()); //Pull full list from file server
 				    		List<String> accessList = new ArrayList<String>(); //Stores names of files which user has access to
-				    		
+
 				    		//Check all files on server and compile list of files which user can access
 				    		ShareFile currFile;
 				    		while(!fullList.isEmpty()){
@@ -125,7 +125,7 @@ public class FileThread extends Thread
 							}
 
 				    		System.out.printf("Successfully generated file list\n");
-				    						    		
+
 				    		output.writeObject(response);
 				    	}
 				    }
@@ -179,14 +179,14 @@ public class FileThread extends Thread
 				    		String tokenServer = yourToken.getFileServer();
 				    		int tokenPort = yourToken.getFilePort();
 
-				    		if(!serverName.equals(tokenServer) || port != tokenPort){
-				    			System.out.println("Token invalid for this server");
-				    			System.out.println(">>Server Name = " + serverName);
-				    			System.out.println(">>Token Server = " + tokenServer);
-				    			System.out.println(">>Port = " + port);
-				    			System.out.println(">>Token Port = " + tokenPort);
-				    			System.exit(0);
-				    		}
+				    		// if(!serverName.equals(tokenServer) || port != tokenPort){
+				    		// 	System.out.println("Token invalid for this server");
+				    		// 	System.out.println(">>Server Name = " + serverName);
+				    		// 	System.out.println(">>Token Server = " + tokenServer);
+				    		// 	System.out.println(">>Port = " + port);
+				    		// 	System.out.println(">>Token Port = " + tokenPort);
+				    		// 	System.exit(0);
+				    		// }
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -268,8 +268,8 @@ public class FileThread extends Thread
 		    			System.out.println("Token invalid for this server");
 		    			System.exit(0);
 		    		}
-					
-					
+
+
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -318,7 +318,7 @@ public class FileThread extends Thread
 
 								}
 
-								
+
 								e.addObject(buf);
 								e.addObject(new Integer(n));
 
@@ -373,7 +373,7 @@ public class FileThread extends Thread
 						System.out.println("Server Replay detected");
 						System.exit(0);
 					}
-					
+
 					//Decrypt everything
 					AESDecrypter remDec = new AESDecrypter(AESKey);
 					String remotePath = remDec.decrypt(encRemPat);
@@ -528,7 +528,7 @@ public class FileThread extends Thread
 			ex.printStackTrace();
 		}
 		return false;
-		
+
 	}
 
 	public EncryptedMessage increment(){
