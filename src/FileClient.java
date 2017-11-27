@@ -228,7 +228,18 @@ public class FileClient extends Client implements FileClientInterface {
 			    ArrayList<Byte> encBytes = new ArrayList<Byte>();
 				while (env.getMessage().compareTo("CHUNK")==0) {
 					byte[] bytesIn = (byte[])env.getObjContents().get(0);
-					int messageSize = (Integer)env.getObjContents().get(1) - 1; //We do not want the null term
+					int messageSize = (Integer)env.getObjContents().get(1); //We do not want the null term
+					//Check for null term
+					for(int i = 0; i < messageSize; i++){
+						if(bytesIn[i] == (byte)0){
+							messageSize = i;
+							break;
+						}
+					}
+
+					//TROUBLESHOOTING
+					System.out.println(">>>messageSize = " + messageSize);
+
 					int ind = 0;
 
 					//Check if reading the IVSpec
