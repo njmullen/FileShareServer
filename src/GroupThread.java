@@ -619,6 +619,21 @@ public class GroupThread extends Thread
 
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
+				 	byte[] sSigned = null;
+				 	
+				 	//Sign the S of the D-H exchange
+				 	try { 
+				 		byte[] sBytes = S.toByteArray();
+				 		Security.addProvider(new BouncyCastleProvider());
+				 		Signature signDH = Signature.getInstance("RSA");
+				 		signDH.initSign(privateKey);
+				 		signDH.update(sBytes);
+				 		sSigned = signDH.sign();
+				 	} catch (Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response.addObject(sSigned);
 
 				 	//Write out and set increment value
 				 	Random rand = new Random();

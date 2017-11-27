@@ -34,6 +34,8 @@ public class FileThread extends Thread
 	private String serverName = null;
 	private int port = 0;
 	private int incrementVal = 0;
+	private PublicKey publicKey = null;
+	private PrivateKey privateKey = null;
 
 	//TODO: Check that serverName = socket.getInet()... works on something
 	//other than localhost
@@ -45,6 +47,29 @@ public class FileThread extends Thread
 		serverName = socket.getInetAddress().getHostName();
 		port = socket.getLocalPort();
 
+		//Read in public and private keys
+		try{
+			File privateKeyFile = new File("filePrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			File publicKeyFile = new File("filePublicKey");
+			FileInputStream keyIn = new FileInputStream(publicKeyFile);
+			byte[] publicKeyBytes = new byte[keyIn.available()];
+			keyIn.read(publicKeyBytes);
+			keyIn.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
 	}
 
 	public void run()
@@ -65,7 +90,7 @@ public class FileThread extends Thread
 				// Handler to list files that this user is allowed to see
 				if(e.getMessage().equals("LFILES"))
 				{
-				    if(e.getObjContents().size() != 1){
+				    if(e.getObjContents().size() != 2){
 				    	response = new Envelope("FAIL-BADCONTENTS");
 				    }
 				    else{
@@ -75,6 +100,12 @@ public class FileThread extends Thread
 				    	else{
 				    		//Decrypt the Token and verify its signature
 				    		EncryptedToken yourToken = (EncryptedToken)e.getObjContents().get(0);
+				    		//Check increment
+							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(1);
+							if(!checkIncrement(increment)){
+								System.out.println("Server Replay detected");
+								System.exit(0);
+							}
 
 				    		EncryptedMessage tokenPart = yourToken.getToken();
 				    		EncryptedMessage sigPart = yourToken.getSignature();
@@ -126,6 +157,9 @@ public class FileThread extends Thread
 
 				    		System.out.printf("Successfully generated file list\n");
 
+				    		//Increment
+							EncryptedMessage incrementSend = increment();
+							response.addObject(incrementSend);
 				    		output.writeObject(response);
 				    	}
 				    }
@@ -153,6 +187,12 @@ public class FileThread extends Thread
 							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
 							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
 							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+							//Check increment
+							EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(3);
+							if(!checkIncrement(increment)){
+								System.out.println("Server Replay detected");
+								System.exit(0);
+							}
 
 							AESDecrypter patDec = new AESDecrypter(AESKey);
 							AESDecrypter groupDec = new AESDecrypter(AESKey);
@@ -176,17 +216,17 @@ public class FileThread extends Thread
 							Token yourToken = new Token(tokBytes);
 
 							//Verify that token is good for this port/server
-			    		String tokenServer = yourToken.getFileServer();
-			    		int tokenPort = yourToken.getFilePort();
+			    			String tokenServer = yourToken.getFileServer();
+			    			int tokenPort = yourToken.getFilePort();
 
-			    		if(!serverName.equals(tokenServer) || port != tokenPort){
-			    			System.out.println("Token invalid for this server");
-			    			System.out.println(">>Server Name = " + serverName);
-			    			System.out.println(">>Token Server = " + tokenServer);
-			    			System.out.println(">>Port = " + port);
-			    			System.out.println(">>Token Port = " + tokenPort);
-			    			System.exit(0);
-			    		}
+				    		if(!serverName.equals(tokenServer) || port != tokenPort){
+				    			System.out.println("Token invalid for this server");
+				    			System.out.println(">>Server Name = " + serverName);
+				    			System.out.println(">>Token Server = " + tokenServer);
+				    			System.out.println(">>Port = " + port);
+				    			System.out.println(">>Token Port = " + tokenPort);
+				    			System.exit(0);
+				    		}
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -233,13 +273,22 @@ public class FileThread extends Thread
 							}
 						}
 					}
-
+					//Increment
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
 					output.writeObject(response);
 				}
+
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
 					EncryptedMessage encRemPat = (EncryptedMessage)e.getObjContents().get(0);
 					EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(1);
+					//Check increment
+					EncryptedMessage increment = (EncryptedMessage)e.getObjContents().get(2);
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
 
 					EncryptedMessage tokenP = encTok.getToken();
 					EncryptedMessage sigP = encTok.getSignature();
@@ -269,17 +318,20 @@ public class FileThread extends Thread
 		    			System.exit(0);
 		    		}
 
-
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_FILEMISSING");
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
 						e = new Envelope("ERROR_PERMISSION");
+						EncryptedMessage incrementSend = increment();
+						e.addObject(incrementSend);
 						output.writeObject(e);
 					}
 					else {
@@ -290,6 +342,8 @@ public class FileThread extends Thread
 						if (!f.exists()) {
 							System.out.printf("Error file %s missing from disk\n", "_"+remotePath.replace('/', '_'));
 							e = new Envelope("ERROR_NOTONDISK");
+							EncryptedMessage incrementSend = increment();
+							e.addObject(incrementSend);
 							output.writeObject(e);
 
 						}
@@ -300,6 +354,9 @@ public class FileThread extends Thread
 							EncryptedMessage encGroup = groupEnc.encrypt(sf.getGroup());
 							e = new Envelope("GROUP");
 							e.addObject(encGroup);
+
+							//INCREMENT???
+
 							output.writeObject(e);
 							FileInputStream fis = new FileInputStream(f);
 
@@ -317,6 +374,8 @@ public class FileThread extends Thread
 								e.addObject(buf);
 								e.addObject(new Integer(n));
 
+								//INCREMENT???
+
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -333,7 +392,11 @@ public class FileThread extends Thread
 							if(e.getMessage().compareTo("DOWNLOADF")==0)
 							{
 
+								//INCREMENT???
+
 								e = new Envelope("EOF");
+								EncryptedMessage incrementSend = increment();
+								e.addObject(incrementSend);
 								output.writeObject(e);
 
 								e = (Envelope)input.readObject();
@@ -342,14 +405,14 @@ public class FileThread extends Thread
 								}
 								else {
 
-									System.out.printf("Upload failed: %s\n", e.getMessage());
+									System.out.printf("Download failed: %s\n", e.getMessage());
 
 								}
 
 							}
 							else {
 
-								System.out.printf("Upload failed: %s\n", e.getMessage());
+								System.out.printf("Download failed: %s\n", e.getMessage());
 
 							}
 						}
@@ -486,6 +549,21 @@ public class FileThread extends Thread
 
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
+				 	byte[] sSigned = null;
+
+				 	//Sign the S of the D-H exchange
+				 	try { 
+				 		byte[] sBytes = S.toByteArray();
+				 		Security.addProvider(new BouncyCastleProvider());
+				 		Signature signDH = Signature.getInstance("RSA");
+				 		signDH.initSign(privateKey);
+				 		signDH.update(sBytes);
+				 		sSigned = signDH.sign();
+				 	} catch (Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response.addObject(sSigned);
 
 				 	//Write out and set increment value
 				 	Random rand = new Random();
@@ -494,11 +572,14 @@ public class FileThread extends Thread
 				 	EncryptedMessage value = valEncr.encrypt(incrementVal);
 				 	response.addObject(value);
 
-
 				 	output.writeObject(response);
 				}
-
-
+				//Return public key to user
+				else if (e.getMessage().equals("GETPUBLICKEY")){
+					response = new Envelope("KEY");
+					response.addObject(publicKey);
+					output.writeObject(response);
+				}
 				else if(e.getMessage().equals("DISCONNECT"))
 				{
 					socket.close();
