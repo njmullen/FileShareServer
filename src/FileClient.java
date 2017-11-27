@@ -202,6 +202,11 @@ public class FileClient extends Client implements FileClientInterface {
 				else{
 					System.out.printf("Error: Could not retrieve group for file\n");
 					System.out.printf("Message contents: %s\n", env.getMessage());
+					return false;
+				}
+
+				if(group == null){
+					System.out.println("Error: File does not ");
 				}
 
 				//Grab group key from list
@@ -226,16 +231,6 @@ public class FileClient extends Client implements FileClientInterface {
 					int messageSize = (Integer)env.getObjContents().get(1) - 1; //We do not want the null term
 					int ind = 0;
 
-				//TROUBLESHOOTING
-					//Copy bytesIn to correct sized array
-					byte[] rightSize = new byte[messageSize];
-					for(int i = 0; i < messageSize; i++){
-						rightSize[i] = bytesIn[i];
-					}
-					System.out.println("\n\n>>>>>CHUNK:");
-					System.out.println(">>>messageSize = " + messageSize);
-					System.out.println(">>>bytesIn = " + new String(rightSize) + "<<<END");
-
 					//Check if reading the IVSpec
 					if(readingIV){
 
@@ -246,32 +241,11 @@ public class FileClient extends Client implements FileClientInterface {
 
 						readingIV = false;
 						ind = IVSIZE;
-
-						//TROUBLESHOOTING
-						System.out.println(">>>ivBytes = " + new String(ivBytes));
-						System.out.println(">>>ind = " + ind);
-						System.out.println(">>>messageSize = " + messageSize);
 					}
-
-					//TROUBLESHOOTING
-					System.out.println(">>>>Reading Message Chunk:");
 
 					while(ind < messageSize){
 						encBytes.add(bytesIn[ind++]);
-
-						// //TROUBLESHOOTING
-						// System.out.println(">>>encFileSb = " + encFileSb.toString());
 					}
-
-					//TROUBLESHOOTING
-					byte[] listBytes = new byte[encBytes.size()];
-					for(int i = 0; i < encBytes.size(); i++){
-						listBytes[i] = encBytes.get(i);
-					}
-					System.out.println(">>>encFileBytes = " + new String(listBytes) + "<<<END\n");
-
-
-					//fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
 
 					System.out.printf(".");
 					env = new Envelope("DOWNLOADF"); //Success
@@ -286,24 +260,13 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 				IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
-				//TROUBLESHOOTING
-				System.out.println(">>>ivSpec Bytes = " + new String(ivSpec.getIV()));
-
 				//Decode to Base64 
 				byte[] decodedBytes = Base64.getDecoder().decode(encFileBytes);
 
 				EncryptedMessage encFile = new EncryptedMessage(decodedBytes, ivSpec);
 
-
-				// //TROUBLESHOOTING
-				// System.out.println(">>>encFileBytes = " + new String(encFileBytes));
-				// System.out.println(">>>ivSpec = " + new String(ivSpec.getIV()));
-
 				AESDecrypter fileDec = new AESDecrypter(groupKey);
 				byte[] decFileBytes = fileDec.decryptBytes(encFile);
-
-				// //TROUBLESHOOTING
-				// System.out.println(new String(decFileBytes));
 
 				fos.write(decFileBytes);
 				fos.close();
@@ -420,30 +383,6 @@ public class FileClient extends Client implements FileClientInterface {
 				ex.printStackTrace();
 			}
 
-			// //Pad file contents to multiple of 16 bytes
-			// int mod = (fileBytes.length % 16);
-			// int toPad = 16 - mod;
-
-			// //TROUBLESHOOTING
-			// System.out.println(">>>fileBytes.length = " + fileBytes.length);
-			// System.out.println(">>>toPad = " + toPad);
-
-			// byte[] paddedBytes = fileBytes;
-			// if(toPad > 0){
-			// 	paddedBytes = new byte[fileBytes.length + toPad];
-			// 	for(int i = 0; i < paddedBytes.length; i++){
-			// 		if(i < fileBytes.length){
-			// 			paddedBytes[i] = fileBytes[i];
-			// 		}
-			// 		else{
-			// 			paddedBytes[i] = (byte)0;
-			// 		}
-
-			// 		//TROUBLESHOOTING
-			// 		System.out.println(">>>paddedBytes[" + i + "] = " + (char)paddedBytes[i]);
-			// 	}
-			// }
-
 			//TODO: Use most recent key for group, not just any key related to group
 			//Find group key in list
 			//Finds first Group key then encrypts with it.
@@ -474,14 +413,6 @@ public class FileClient extends Client implements FileClientInterface {
 			//Put into new byte array: [ivBytes, encFileBytes]
 			int sizeToSend = ivBytes.length + encodedBytes.length;
 
-			//TROUBLESHOOTING
-			System.out.println("\n\n>>>>>UPLOAD:");
-			System.out.println(">>>ivBytes = " + new String(ivBytes) + "<<<END");
-			System.out.println(">>>encFileBytes = " + new String(encFileBytes) + "<<<END");
-			System.out.println(">>>encodedBytes = " + new String(encodedBytes) + "<<<END");
-			System.out.println(">>>sizeToSend = " + sizeToSend);
-			System.out.println("\n");
-
 			byte[] toSend = new byte[sizeToSend];
 			int i;
 			for(i = 0; i < ivBytes.length; i++){
@@ -509,19 +440,6 @@ public class FileClient extends Client implements FileClientInterface {
 			 		buf[i] = toSend[t++];
 			 		System.out.printf(".");
 			 	}
-
-				// int n = fis.read(buf); //can throw an IOException
-				// if (n > 0) {
-				// 	System.out.printf(".");
-				// } else if (n < 0) {
-				// 	System.out.println("Read error");
-				// 	return false;
-				// }
-
-				// //????????????????
-				// AESEncrypter bufEnc = new AESEncrypter(groupKey);
-
-				// EncryptedMessage bufSend = bufEnc.encrypt(buf);
 
 				message.addObject(buf);
 				message.addObject(new Integer(i + 1));

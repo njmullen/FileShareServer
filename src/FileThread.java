@@ -258,11 +258,6 @@ public class FileThread extends Thread
 					AESDecrypter remDec = new AESDecrypter(AESKey);
 					String remotePath = remDec.decrypt(encRemPat);
 
-					// //Insert '_' to beginning of file path
-					// StringBuilder sb = new StringBuilder(remotePath);
-					// sb.insert(0, '_');
-					// remotePath = sb.toString();
-
 					Token t = new Token(tokBytes);
 
 					//Verify that token is good for this port/server
@@ -315,12 +310,9 @@ public class FileThread extends Thread
 								int n = fis.read(buf); //can throw an IOException
 								if (n > 0) {
 									System.out.printf(".\n");
-									System.out.printf(">>>file size = " + n + "\n");
 								} else if (n < 0) {
 									System.out.println("Read error");
-
 								}
-
 
 								e.addObject(buf);
 								e.addObject(new Integer(n));
