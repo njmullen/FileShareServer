@@ -26,6 +26,7 @@ public class FileClient extends Client implements FileClientInterface {
 	private Key AESKey = null;
 	private int incrementVal = 0;
 	private EncryptedMessage encryptedVal = null;
+	private int IVSIZE = 16; 
 
 	public void setAESKey(Key key){
 		AESKey = key;
@@ -215,10 +216,10 @@ public class FileClient extends Client implements FileClientInterface {
 
 			    //TODO: Ensure bounds
 			    //Read in IvSpec and entire encrypted file
-			    boolean readingSize = true;
-			    boolean readingIV = false;
+			    // boolean readingSize = true;
+			    boolean readingIV = true;
 			    byte[] ivBytes = new byte[1];
-			    int ivSize = 0;
+			    // int ivSize = 0;
 			    StringBuilder encFileSb = new StringBuilder();
 				while (env.getMessage().compareTo("CHUNK")==0) {
 					byte[] bytesIn = (byte[])env.getObjContents().get(0);
@@ -229,45 +230,49 @@ public class FileClient extends Client implements FileClientInterface {
 					System.out.println("\n\n>>>>>CHUNK:");
 					System.out.println(">>>messageSize = " + messageSize);
 					System.out.println(">>>bytesIn = " + new String(bytesIn));
+					System.out.println("<<<END");
 
-					//Check if reading size of IVSpec
-					if(readingSize){
-						//Parse the size of the IVSpec
-						StringBuilder sizeSB = new StringBuilder();
-						int i = 0;
-						while((char)bytesIn[i] != '|'){
-							sizeSB.append((char)bytesIn[i++]);
-						}
-						ind = ++i;
-						ivSize = new Integer(sizeSB.toString());
+					// //Check if reading size of IVSpec
+					// if(readingSize){
+					// 	//Parse the size of the IVSpec
+					// 	StringBuilder sizeSB = new StringBuilder();
+					// 	int i = 0;
+					// 	while((char)bytesIn[i] != '|'){
+					// 		sizeSB.append((char)bytesIn[i++]);
+					// 	}
+					// 	ind = ++i;
+					// 	ivSize = new Integer(sizeSB.toString());
 
-						//TROUBLESHOOTING
-						System.out.println(">>>ivSize = " + ivSize);
+					// 	//TROUBLESHOOTING
+					// 	System.out.println(">>>ivSize = " + ivSize);
 
-						readingSize = false;
-						readingIV = true;
-					}
+					// 	readingSize = false;
+					// 	readingIV = true;
+					// }
+
 					//Check if reading the IVSpec
 					if(readingIV){
 
-						//TROUBLESHOOTING
-						System.out.println(">>>>Reading IV:");
+						// //TROUBLESHOOTING
+						// System.out.println(">>>>Reading IV:");
 
-						ivBytes = new byte[ivSize];
-						for(int i = 0; i < ivSize; i++){
-							ivBytes[i] = bytesIn[ind++];
+						ivBytes = new byte[IVSIZE];
+						for(int i = 0; i < IVSIZE; i++){
+							ivBytes[i] = bytesIn[i];
 							
-							//TROUBLESHOOTING
-							System.out.println("ivBytes[" + i + "] = " + (char)ivBytes[i]);
+							// //TROUBLESHOOTING
+							// System.out.println("ivBytes[" + i + "] = " + (char)ivBytes[i]);
 						}
 
-						//TROUBLESHOOTING
-						System.out.println("\n");
+						// //TROUBLESHOOTING
+						// System.out.println("\n");
 
 						readingIV = false;
-						messageSize -= ind;
+						ind = IVSIZE;
+						// messageSize -= ind;
 
 						//TROUBLESHOOTING
+						System.out.println(">>>ivBytes = " + new String(ivBytes));
 						System.out.println(">>>ind = " + ind);
 						System.out.println(">>>messageSize = " + messageSize);
 					}
@@ -447,7 +452,7 @@ public class FileClient extends Client implements FileClientInterface {
 			//Get byte[]'s for the encFile object
 			byte[] ivBytes = encFile.getIVBytes();
 			byte[] encFileBytes = encFile.getEncryptedBytes();
-			byte[] ivSizeBytes = new Integer(ivBytes.length).toString().getBytes();
+			// byte[] ivSizeBytes = new Integer(ivBytes.length).toString().getBytes();
 
 			//TROUBLESHOOTING
 			System.out.println("\n\n>>>>>UPLOAD:");
@@ -456,17 +461,14 @@ public class FileClient extends Client implements FileClientInterface {
 			System.out.println("\n");
 
 
-			//Put into new byte array: [size of IV, |, ivBytes, encFileBytes]
-			int sizeToSend = ivSizeBytes.length + ivBytes.length + encFileBytes.length + 1;
+			//Put into new byte array: [ivBytes, encFileBytes]
+			int sizeToSend = ivBytes.length + encFileBytes.length + 1;
 			byte[] toSend = new byte[sizeToSend];
 			int i;
-			for(i = 0; i < ivSizeBytes.length; i++){
-				toSend[i] = ivSizeBytes[i];
+			for(i = 0; i < ivBytes.length; i++){
+				toSend[i] = ivBytes[i];
 			}
-			toSend[i++] = ((byte)'|');
-			for(int j = 0; j < ivBytes.length; j++){
-				toSend[i++] = ivBytes[j];
-			}
+			// toSend[i++] = ((byte)'|');
 			for(int k = 0; k < encFileBytes.length; k++){
 				toSend[i++] = encFileBytes[k];
 			}
