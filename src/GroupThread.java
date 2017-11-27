@@ -754,6 +754,7 @@ public class GroupThread extends Thread
 						deleteFromGroups.add(my_gs.userList.getUserGroups(username).get(index));
 					}
 
+
 					//If groups are owned, they must be deleted
 					ArrayList<String> deleteOwnedGroup = new ArrayList<String>();
 
@@ -762,6 +763,16 @@ public class GroupThread extends Thread
 					{
 						deleteOwnedGroup.add(my_gs.userList.getUserOwnership(username).get(index));
 					}
+
+					//Generate new file key for each group that deleted the user.
+					System.out.println("At delete group keys");
+					for (String g : deleteFromGroups ) {
+						//only gen for groups we aren't deleting the owner of
+						//if(!deleteOwnedGroup.contains(g))
+						genNewGroupKey(g);
+						System.out.println("New GroupKey for "+g);
+					 	//}
+				 	}
 
 					//Delete owned groups
 					for(int index = 0; index < deleteOwnedGroup.size(); index++)
