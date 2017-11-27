@@ -4,6 +4,8 @@ del *.bin
 
 del *.txt
 
+del shared_files
+
 del filePrivateKey
 
 del filePublicKey

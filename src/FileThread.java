@@ -258,6 +258,11 @@ public class FileThread extends Thread
 					AESDecrypter remDec = new AESDecrypter(AESKey);
 					String remotePath = remDec.decrypt(encRemPat);
 
+					// //Insert '_' to beginning of file path
+					// StringBuilder sb = new StringBuilder(remotePath);
+					// sb.insert(0, '_');
+					// remotePath = sb.toString();
+
 					Token t = new Token(tokBytes);
 
 					//Verify that token is good for this port/server

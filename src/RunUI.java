@@ -56,7 +56,7 @@ public class RunUI {
     int groupPort = 8765;
     int filePort = 4321;
     String groupServerChoice = "localhost";
-    String fileServerChoice = "localhost";
+    String fileServerChoice = "127.0.0.1";
 
     //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
