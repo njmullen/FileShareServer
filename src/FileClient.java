@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.Base64;
+
 import java.security.*;
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
@@ -221,7 +223,7 @@ public class FileClient extends Client implements FileClientInterface {
 			    ArrayList<Byte> encBytes = new ArrayList<Byte>();
 				while (env.getMessage().compareTo("CHUNK")==0) {
 					byte[] bytesIn = (byte[])env.getObjContents().get(0);
-					int messageSize = (Integer)env.getObjContents().get(1);
+					int messageSize = (Integer)env.getObjContents().get(1) - 1; //We do not want the null term
 					int ind = 0;
 
 				//TROUBLESHOOTING
@@ -232,8 +234,7 @@ public class FileClient extends Client implements FileClientInterface {
 					}
 					System.out.println("\n\n>>>>>CHUNK:");
 					System.out.println(">>>messageSize = " + messageSize);
-					System.out.println(">>>bytesIn = " + new String(rightSize));
-					System.out.println("<<<END");
+					System.out.println(">>>bytesIn = " + new String(rightSize) + "<<<END");
 
 					//Check if reading the IVSpec
 					if(readingIV){
@@ -267,7 +268,7 @@ public class FileClient extends Client implements FileClientInterface {
 					for(int i = 0; i < encBytes.size(); i++){
 						listBytes[i] = encBytes.get(i);
 					}
-					System.out.println(">>>encFileBytes = " + new String(listBytes) + "\n");
+					System.out.println(">>>encFileBytes = " + new String(listBytes) + "<<<END\n");
 
 
 					//fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
@@ -288,7 +289,10 @@ public class FileClient extends Client implements FileClientInterface {
 				//TROUBLESHOOTING
 				System.out.println(">>>ivSpec Bytes = " + new String(ivSpec.getIV()));
 
-				EncryptedMessage encFile = new EncryptedMessage(encFileBytes, ivSpec);
+				//Decode to Base64 
+				byte[] decodedBytes = Base64.getDecoder().decode(encFileBytes);
+
+				EncryptedMessage encFile = new EncryptedMessage(decodedBytes, ivSpec);
 
 
 				// //TROUBLESHOOTING
@@ -416,29 +420,29 @@ public class FileClient extends Client implements FileClientInterface {
 				ex.printStackTrace();
 			}
 
-			//Pad file contents to multiple of 16 bytes
-			int mod = (fileBytes.length % 16);
-			int toPad = 16 - mod;
+			// //Pad file contents to multiple of 16 bytes
+			// int mod = (fileBytes.length % 16);
+			// int toPad = 16 - mod;
 
-			//TROUBLESHOOTING
-			System.out.println(">>>fileBytes.length = " + fileBytes.length);
-			System.out.println(">>>toPad = " + toPad);
+			// //TROUBLESHOOTING
+			// System.out.println(">>>fileBytes.length = " + fileBytes.length);
+			// System.out.println(">>>toPad = " + toPad);
 
-			byte[] paddedBytes = fileBytes;
-			if(toPad > 0){
-				paddedBytes = new byte[fileBytes.length + toPad];
-				for(int i = 0; i < paddedBytes.length; i++){
-					if(i < fileBytes.length){
-						paddedBytes[i] = fileBytes[i];
-					}
-					else{
-						paddedBytes[i] = (byte)0;
-					}
+			// byte[] paddedBytes = fileBytes;
+			// if(toPad > 0){
+			// 	paddedBytes = new byte[fileBytes.length + toPad];
+			// 	for(int i = 0; i < paddedBytes.length; i++){
+			// 		if(i < fileBytes.length){
+			// 			paddedBytes[i] = fileBytes[i];
+			// 		}
+			// 		else{
+			// 			paddedBytes[i] = (byte)0;
+			// 		}
 
-					//TROUBLESHOOTING
-					System.out.println(">>>paddedBytes[" + i + "] = " + (char)paddedBytes[i]);
-				}
-			}
+			// 		//TROUBLESHOOTING
+			// 		System.out.println(">>>paddedBytes[" + i + "] = " + (char)paddedBytes[i]);
+			// 	}
+			// }
 
 			//TODO: Use most recent key for group, not just any key related to group
 			//Find group key in list
@@ -458,30 +462,34 @@ public class FileClient extends Client implements FileClientInterface {
 
 			//Encrypt the file using group key
 			AESEncrypter fileEnc = new AESEncrypter(groupKey);
-			EncryptedMessage encFile = fileEnc.encrypt(paddedBytes);
+			EncryptedMessage encFile = fileEnc.encrypt(fileBytes);
 
 			//Get byte[]'s for the encFile object
 			byte[] ivBytes = encFile.getIVBytes();
 			byte[] encFileBytes = encFile.getEncryptedBytes();
-			// byte[] ivSizeBytes = new Integer(ivBytes.length).toString().getBytes();
 
-			//TROUBLESHOOTING
-			System.out.println("\n\n>>>>>UPLOAD:");
-			System.out.println(">>>ivBytes = " + new String(ivBytes));
-			System.out.println(">>>encFileBytes = " + new String(encFileBytes) + "<<<END");
-			System.out.println("\n");
+			byte[] encodedBytes = Base64.getEncoder().encode(encFileBytes);
 
 
 			//Put into new byte array: [ivBytes, encFileBytes]
-			int sizeToSend = ivBytes.length + encFileBytes.length + 1;
+			int sizeToSend = ivBytes.length + encodedBytes.length;
+
+			//TROUBLESHOOTING
+			System.out.println("\n\n>>>>>UPLOAD:");
+			System.out.println(">>>ivBytes = " + new String(ivBytes) + "<<<END");
+			System.out.println(">>>encFileBytes = " + new String(encFileBytes) + "<<<END");
+			System.out.println(">>>encodedBytes = " + new String(encodedBytes) + "<<<END");
+			System.out.println(">>>sizeToSend = " + sizeToSend);
+			System.out.println("\n");
+
 			byte[] toSend = new byte[sizeToSend];
 			int i;
 			for(i = 0; i < ivBytes.length; i++){
 				toSend[i] = ivBytes[i];
 			}
 			// toSend[i++] = ((byte)'|');
-			for(int k = 0; k < encFileBytes.length; k++){
-				toSend[i++] = encFileBytes[k];
+			for(int k = 0; k < encodedBytes.length; k++){
+				toSend[i++] = encodedBytes[k];
 			}
 
 			int t = 0;

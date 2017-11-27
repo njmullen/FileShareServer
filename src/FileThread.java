@@ -314,7 +314,8 @@ public class FileThread extends Thread
 								e = new Envelope("CHUNK");
 								int n = fis.read(buf); //can throw an IOException
 								if (n > 0) {
-									System.out.printf(".");
+									System.out.printf(".\n");
+									System.out.printf(">>>file size = " + n + "\n");
 								} else if (n < 0) {
 									System.out.println("Read error");
 
