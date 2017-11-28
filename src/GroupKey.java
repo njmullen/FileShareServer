@@ -28,4 +28,7 @@ public class GroupKey implements java.io.Serializable{
 	public SecretKey getKey(){
 		return key;
 	}
+	public SecretKey getEncrypterKey(){
+		return key;
+	}
 }

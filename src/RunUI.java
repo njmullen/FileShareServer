@@ -56,7 +56,7 @@ public class RunUI {
     int groupPort = 8765;
     int filePort = 4321;
     String groupServerChoice = "localhost";
-    String fileServerChoice = "127.0.0.1";
+    String fileServerChoice = "localhost";
 
     //If the user chooses to use custom settings, connect with those, otherwise defaults
     if (useDefault.equals("N") || useDefault.equals("n")){
@@ -373,9 +373,9 @@ public class RunUI {
     token = gc.getToken(username, fileServerChoice, filePort);
     groupKeys = gc.getGroupKeys();
     //TROUBLESHOOTING
-    System.out.println("GroupKeySize after login "+groupKeys.size());
+    System.out.println("\nYou are "+groupKeys.size()+" groups.");
     for( GroupKey k : groupKeys ) {
-      System.out.println(k.getName());
+      System.out.println("Group "+k.getName());
     }
 
     if (token == null){

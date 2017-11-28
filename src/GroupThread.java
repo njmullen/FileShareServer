@@ -156,10 +156,10 @@ public class GroupThread extends Thread
 
 						// Print out groupnames that server knows of
 						// TROUBLESHOOTING
-						System.out.println("GroupKeySize in thead "+groupKeys.size());
-						for( GroupKey k : groupKeys ) {
-							System.out.println(k.getName());
-						}
+						// System.out.println("GroupKeySize in thead "+groupKeys.size());
+						// for( GroupKey k : groupKeys ) {
+						// 	System.out.println(k.getName());
+						// }
 
 						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
 						for(int i = 0; i < groupKeys.size(); i++){

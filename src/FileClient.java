@@ -28,7 +28,7 @@ public class FileClient extends Client implements FileClientInterface {
 	private Key AESKey = null;
 	private int incrementVal = 0;
 	private EncryptedMessage encryptedVal = null;
-	private int IVSIZE = 16; 
+	private int IVSIZE = 16;
 
 	public void setAESKey(Key key){
 		AESKey = key;
@@ -271,7 +271,7 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 				IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
 
-				//Decode to Base64 
+				//Decode to Base64
 				byte[] decodedBytes = Base64.getDecoder().decode(encFileBytes);
 
 				EncryptedMessage encFile = new EncryptedMessage(decodedBytes, ivSpec);
@@ -354,13 +354,30 @@ public class FileClient extends Client implements FileClientInterface {
 
 		try
 		 {
+			 //Get the group key to send its hash to the server
+			 //Uses most recent group key to encrypt a file
+			 Key groupKey = null;
+			 for(int i = 0; i < groupKeys.size(); i++){
+				 if(groupKeys.get(i).getName().compareTo(group) == 0){
+					 groupKey = groupKeys.get(i).getEncrypterKey();
+					 break;
+				 }
+			 }
+			 //Sanity check
+			 if(groupKey == null){
+				 System.out.println(">>>Error: Could not find group in list");
+				 return false;
+			 }
 
 		 	//Encrypt Everything
 		 	AESEncrypter destEnc = new AESEncrypter(AESKey);
 		 	AESEncrypter groupEnc = new AESEncrypter(AESKey);
+			AESEncrypter hashEnc = new AESEncrypter(AESKey);
 
 		 	EncryptedMessage dest = destEnc.encrypt(destFile);
 		 	EncryptedMessage _group = groupEnc.encrypt(group);
+			byte[] keyedHash = getKeyedHash(groupKey);
+			EncryptedMessage encKeyedHash = hashEnc.encrypt(keyedHash);
 
 			Envelope message = null, env = null;
 			//Tell the server to return the member list
@@ -368,6 +385,7 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(dest);
 			message.addObject(_group);
 			message.addObject(token); //Add requester's token
+			message.addObject(encKeyedHash); //Add hash of group's key
 			output.writeObject(message);
 
 			env = (Envelope)input.readObject();
@@ -394,21 +412,6 @@ public class FileClient extends Client implements FileClientInterface {
 				ex.printStackTrace();
 			}
 
-			//TODO: Use most recent key for group, not just any key related to group
-			//Find group key in list
-			//Finds first Group key then encrypts with it.
-			SecretKey groupKey = null;
-			for(int i = 0; i < groupKeys.size(); i++){
-				if(groupKeys.get(i).getName().compareTo(group) == 0){
-					groupKey = groupKeys.get(i).getKey();
-					break;
-				}
-			}
-			//Sanity check
-			if(groupKey == null){
-				System.out.println(">>>Error: Could not find group in list");
-				return false;
-			}
 
 			//Encrypt the file using group key
 			AESEncrypter fileEnc = new AESEncrypter(groupKey);
@@ -525,5 +528,15 @@ public class FileClient extends Client implements FileClientInterface {
 	 	return null;
 	 }
 
-
+	 private byte[] getKeyedHash(Key groupkey) {
+		 byte[] gKeyHash = null;
+		 try {
+			 	DigestSHA3 md = new DigestSHA3(256);
+				md.update(groupkey.getEncoded());
+			 	gKeyHash = md.digest();
+		 } catch(Exception ex) {
+			 ex.printStackTrace();
+		 }
+		 return gKeyHash;
+	 }
 }
