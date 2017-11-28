@@ -172,7 +172,7 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	public boolean download(String sourceFile, String destFile, EncryptedToken token, ArrayList<GroupKey> groupKeys) {
+	public boolean download(String sourceFile, String destFile, EncryptedToken token, ArrayList<GroupKeyList> groupKeys) {
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -214,7 +214,7 @@ public class FileClient extends Client implements FileClientInterface {
 				SecretKey groupKey = null;
 				for(int i = 0; i < groupKeys.size(); i++){
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
-						groupKey = groupKeys.get(i).getKey();
+						groupKey = groupKeys.get(i).getEncrypterKey();
 						break;
 					}
 				}
@@ -403,7 +403,7 @@ public class FileClient extends Client implements FileClientInterface {
 			SecretKey groupKey = null;
 			for(int i = 0; i < groupKeys.size(); i++){
 				if(groupKeys.get(i).getName().compareTo(group) == 0){
-					groupKey = groupKeys.get(i).getKey();
+					groupKey = groupKeys.get(i).getEncrypterKey();
 					break;
 				}
 			}

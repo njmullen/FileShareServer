@@ -2,6 +2,7 @@
 import javax.crypto.*;
 import java.security.*;
 import java.util.Base64;
+import java.util.ArrayList;
 
 public class GroupKeyList implements java.io.Serializable{
 	String name;
@@ -37,7 +38,7 @@ public class GroupKeyList implements java.io.Serializable{
 		for(int i = 0; i < keys.size(); i++){
 			AESEncrypter keyEncrypter = new AESEncrypter(AESKey);
 			EncryptedMessage encKey = keyEncrypter.encrypt(Base64.getEncoder().encode(keys.get(i).getEncoded()));
-			encList.add(encKey);
+			encList.addKey(encKey);
 		}
 		return encList;
 	}

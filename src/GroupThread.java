@@ -1036,8 +1036,8 @@ public class GroupThread extends Thread
 
 				//Check if list already contains this group
 				boolean contains = false;
-				for(int i = 0; i < keyList.size(); i++){
-					if(keyList.get(i).getName().equals(name.toString()) == 0){
+				for(i = 0; i < keyList.size(); i++){
+					if(keyList.get(i).getName().equals(name.toString())){
 						contains = true;
 						keyList.get(i).addKey(key);
 						break;

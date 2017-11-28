@@ -64,7 +64,7 @@ public interface FileClientInterface
      * @return true on success, false on failure
      *
      */
-    public boolean upload(final String sourceFile, final String destFile, final String group, final EncryptedToken token, final ArrayList<GroupKey> groupKeys);
+    public boolean upload(final String sourceFile, final String destFile, final String group, final EncryptedToken token, final ArrayList<GroupKeyList> groupKeys);
 
 
     /**
@@ -78,7 +78,7 @@ public interface FileClientInterface
      * @return true on success, false on failure
      *
      */
-    public boolean download(final String sourceFile, final String destFile, final EncryptedToken token, final ArrayList<GroupKey> groupKeys);
+    public boolean download(final String sourceFile, final String destFile, final EncryptedToken token, final ArrayList<GroupKeyList> groupKeys);
 
 
     /**

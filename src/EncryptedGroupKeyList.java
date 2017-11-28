@@ -3,6 +3,7 @@ import java.security.*;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
+import java.util.ArrayList;
 
 public class EncryptedGroupKeyList implements java.io.Serializable{
 	EncryptedMessage groupName;
@@ -19,7 +20,7 @@ public class EncryptedGroupKeyList implements java.io.Serializable{
 		groupName = name;
 		groupKeys = new ArrayList<EncryptedMessage>();
 		groupKeys.add(key);
-		mostRecent = groupKeys.get(0)
+		mostRecent = groupKeys.get(0);
 	}
 
 	public GroupKeyList getDecryptedList(Key AESKey){
@@ -33,7 +34,7 @@ public class EncryptedGroupKeyList implements java.io.Serializable{
 
 			byte[] decodedKey = Base64.getDecoder().decode(keyBytes);
 			SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
-			keyList.add(key);
+			keyList.addKey(key);
 		}	
 
 		return keyList;

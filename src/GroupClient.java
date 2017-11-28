@@ -646,7 +646,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 	}
 	 }
 
-	public ArrayList<GroupKey> getGroupKeys(){
+	public ArrayList<GroupKeyList> getGroupKeys(){
 		return groupKeys;
 	}
 }
