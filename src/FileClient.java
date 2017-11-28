@@ -225,9 +225,6 @@ public class FileClient extends Client implements FileClientInterface {
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
 						boolean theresAKey = false;
 						for( Key gKey : groupKeys.get(i).getKeys() ) {
-							// System.out.println("Keyed hash in group: "+getKeyedHash(gKey));
-							// System.out.println("After decryption keyed hash: "+fileEncKey);
-
 							if (Arrays.equals(getKeyedHash(gKey), fileEncKey)) {
 								groupKey = gKey;
 								theresAKey = true;
@@ -404,8 +401,6 @@ public class FileClient extends Client implements FileClientInterface {
 		 	EncryptedMessage _group = groupEnc.encrypt(group);
 			byte[] keyedHash = getKeyedHash(groupKey);
 			EncryptedMessage encKeyedHash = hashEnc.encrypt(keyedHash);
-
-		//	System.out.println("Before sent keyed hash: "+keyedHash);
 
 			Envelope message = null, env = null;
 			//Tell the server to return the member list
