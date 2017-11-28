@@ -88,10 +88,7 @@ public class GroupServer extends Server {
 				//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
 				FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
 				byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
-				//String format = key.getFormat();
 				groupKeyWrite.write(new String("ADMIN").getBytes());
-				// groupKeyWrite.write(new String("|").getBytes());
-				// groupKeyWrite.write(format.getBytes());
 				groupKeyWrite.write(new String("|").getBytes());
 				groupKeyWrite.write(keyBytes);
 				groupKeyWrite.write(new String("|").getBytes());

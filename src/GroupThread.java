@@ -152,22 +152,14 @@ public class GroupThread extends Thread
 						response.addObject(encryptedToken);
 
 						//Generate list of encrypted group keys to send to user
-						ArrayList<GroupKey> groupKeys = getGroupKeys(newGroupList);
+						ArrayList<GroupKeyList> groupKeys = getGroupKeys(newGroupList);
 
-						// Print out groupnames that server knows of
-						// TROUBLESHOOTING
-						System.out.println("GroupKeySize in thead "+groupKeys.size());
-						for( GroupKey k : groupKeys ) {
-							System.out.println(k.getName());
-						}
-
-						ArrayList<EncryptedGroupKey> encGroupKeys = new ArrayList<EncryptedGroupKey>();
+						ArrayList<EncryptedGroupKeyList> encGroupKeys = new ArrayList<EncryptedGroupKeyList>();
 						for(int i = 0; i < groupKeys.size(); i++){
-							encGroupKeys.add(groupKeys.get(i).getEncrypted(AESKey));
+							encGroupKeys.add(groupKeys.get(i).getEncryptedList(AESKey));
 						}
 
 						response.addObject(encGroupKeys);
-
 
 						//Increment value
 						EncryptedMessage incrementSend = increment();
@@ -965,7 +957,9 @@ public class GroupThread extends Thread
 		}
 	}
 
-	private ArrayList<GroupKey> getGroupKeys(List<String> groupNames)
+	//Parse groupKeyList file
+	//Compile and ArrayList of GroupKeyList's containing every key for every group in list, groupNames
+	private ArrayList<GroupKeyList> getGroupKeys(List<String> groupNames)
 	{
 		//Read in all group keys
 		byte[] allBytes = new byte[1];
@@ -981,9 +975,8 @@ public class GroupThread extends Thread
 		}
 
 		//Parse file text to compile a list of applicable keys
-		ArrayList<GroupKey> keyList = new ArrayList<GroupKey>();
+		ArrayList<GroupKeyList> keyList = new ArrayList<GroupKeyList>();
 		StringBuilder name = new StringBuilder();
-		//StringBuilder form = new StringBuilder();
 		int i = 0;
 		boolean proceed = true;
 		boolean parsingName = true;
@@ -1017,17 +1010,6 @@ public class GroupThread extends Thread
 				}
 			}
 
-			// //Parse format
-			// else if(parsingFormat){
-			// 	char c = (char) allBytes[i++];
-			// 	if(c == "|"){
-			// 		parsingFormat = false;
-			// 	}
-			// 	else{
-			// 		form.append(c);
-			// 	}
-			// }
-
 			//Parse key
 			else{
 				//Fill new byte[] with Base64 encoded key bytes
@@ -1052,8 +1034,19 @@ public class GroupThread extends Thread
 				byte[] decodedKey = Base64.getDecoder().decode(keyBytes);
 				SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
 
+				//Check if list already contains this group
+				boolean contains = false;
+				for(int i = 0; i < keyList.size(); i++){
+					if(keyList.get(i).getName().equals(name.toString()) == 0){
+						contains = true;
+						keyList.get(i).addKey(key);
+						break;
+					}
+				}
 				//Create new GroupKey and add to list
-				keyList.add(new GroupKey(name.toString(), key));
+				if(!contains){
+					keyList.add(new GroupKeyList(name.toString(), key));
+				}
 
 				//Flush name
 				name = new StringBuilder();
@@ -1074,10 +1067,7 @@ public class GroupThread extends Thread
 			//Format: [group name 1] | [key 1] || [group name 2] | [key 2] || ...
 			FileOutputStream groupKeyWrite = new FileOutputStream("groupKeyList", true);
 			byte[] keyBytes = Base64.getEncoder().encode(key.getEncoded());
-			// String format = key.getFormat();
 			groupKeyWrite.write(groupname.getBytes());
-			// groupKeyWrite.write(new String("|").getBytes());
-			// groupKeyWrite.write(format.getBytes());
 			groupKeyWrite.write(new String("|").getBytes());
 			groupKeyWrite.write(keyBytes);
 			groupKeyWrite.write(new String("|").getBytes());
