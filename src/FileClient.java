@@ -188,25 +188,42 @@ public class FileClient extends Client implements FileClientInterface {
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
+			    //Add increment value
+				EncryptedMessage increment = increment();
+				env.addObject(increment);
 			    output.writeObject(env);
 
 			    env = (Envelope)input.readObject();
 
 			    String group = null;
-					byte[] fileEncKey = null;
+				byte[] fileEncKey = null;
+
 			    //Receive the group from the server
 				if(env.getMessage().compareTo("GROUP") == 0){
 					if (env.getObjContents().size() < 2) {
 						System.out.println("Error in GROUP, message length < 2, missing keyed hash");
 					}
+		
 					AESDecrypter groupDec = new AESDecrypter(AESKey);
 					group = groupDec.decrypt((EncryptedMessage)env.getObjContents().get(0));
 
 					AESDecrypter keyedHashDec = new AESDecrypter(AESKey);
 					fileEncKey = keyedHashDec.decryptBytes((EncryptedMessage)env.getObjContents().get(1));
-				}
-				else{
+
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(2);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
+				} else{
 					System.out.printf("Error: Could not retrieve group for file\n");
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 					System.out.printf("Message contents: %s\n", env.getMessage());
 					return false;
 				}
@@ -306,28 +323,28 @@ public class FileClient extends Client implements FileClientInterface {
 				fos.close();
 
 			    if(env.getMessage().compareTo("EOF")==0) {
-			    	 fos.close();
-						System.out.printf("\nTransfer successful file %s\n", sourceFile);
-						env = new Envelope("OK"); //Success
-						output.writeObject(env);
+			    	fos.close();
+					System.out.printf("\nTransfer successful file %s\n", sourceFile);
+					env = new Envelope("OK"); //Success
+					//Add increment value
+					EncryptedMessage increment2 = increment();
+					env.addObject(increment2);
+					output.writeObject(env);
+				} else {
+					System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
+					file.delete();
+					return false;
 				}
-				else {
-						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
-						file.delete();
-						return false;
-				}
-
 	    } catch (IOException e1) {
-				e1.printStackTrace();
+			e1.printStackTrace();
 	    	System.out.printf("Error couldn't create file %s\n", destFile);
 	    	return false;
-
-
 		}
 	    catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
-		 return true;
+
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -338,14 +355,16 @@ public class FileClient extends Client implements FileClientInterface {
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
 			 message.addObject(token); //Add requester's token
+			 //Add increment value
+			 EncryptedMessage increment = increment();
+			 message.addObject(increment);
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
 
 
 			 //If server indicates success, return the member list
-			 if(e.getMessage().equals("OK"))
-			 {
+			 if(e.getMessage().equals("OK")){
 				int size = (int)e.getObjContents().get(0);
 				List<String> fileList = new ArrayList<String>();
 				for(int i = 1; i < size + 1; i++){
@@ -354,7 +373,15 @@ public class FileClient extends Client implements FileClientInterface {
 			 		String thisMember = listDecr.decrypt(encList);
 			 		fileList.add(thisMember);
 			 	}
+			 	//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)e.getObjContents().get(size + 1);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 			 	return fileList;
+			 } else {
+			 	System.out.println("Error: " + e.getMessage());
 			 }
 
 			 return null;
@@ -409,7 +436,9 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(_group);
 			message.addObject(token); //Add requester's token
 			message.addObject(encKeyedHash); //Add hash of group's key
-			//INCREMENT???
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
 
 			output.writeObject(message);
 
@@ -422,6 +451,12 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 			else {
 				System.out.printf("Upload failed: %s\n", env.getMessage());
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				return false;
 			}
 
@@ -499,12 +534,24 @@ public class FileClient extends Client implements FileClientInterface {
 				output.writeObject(message);
 
 				env = (Envelope)input.readObject();
+
 				if(env.getMessage().compareTo("OK")==0) {
 					System.out.printf("\nFile data upload successful\n");
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 				}
 				else {
-
 					 System.out.printf("\nUpload failed: %s\n", env.getMessage());
+					 //Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 					 return false;
 				 }
 
