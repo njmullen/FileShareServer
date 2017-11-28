@@ -212,13 +212,13 @@ public class FileClient extends Client implements FileClientInterface {
 				//Grab group key from list
 				//Have to figure out how we'll hash keys and deal with multiple old keys
 
-				// SecretKey groupKey = null;
-				// for(int i = 0; i < groupKeys.size(); i++){
-				// 	if(groupKeys.get(i).getName().compareTo(group) == 0){
-				// 		groupKey = groupKeys.get(i).getEncrypterKey();
-				// 		break;
-				// 	}
-				// }
+				SecretKey groupKey = null;
+				for(int i = 0; i < groupKeys.size(); i++){
+					if(groupKeys.get(i).getName().compareTo(group) == 0){
+						groupKey = groupKeys.get(i).getEncrypterKey();
+						break;
+					}
+				}
 
 				env = (Envelope)input.readObject();
 
@@ -415,21 +415,21 @@ public class FileClient extends Client implements FileClientInterface {
 				ex.printStackTrace();
 			}
 
-			//TODO: Use most recent key for group, not just any key related to group
-			//Find group key in list
-			//Finds first Group key then encrypts with it.
-			SecretKey groupKey = null;
-			for(int i = 0; i < groupKeys.size(); i++){
-				if(groupKeys.get(i).getName().compareTo(group) == 0){
-					groupKey = groupKeys.get(i).getEncrypterKey();
-					break;
-				}
-			}
-			//Sanity check
-			if(groupKey == null){
-				System.out.println(">>>Error: Could not find group in list");
-				return false;
-			}
+			// //TODO: Use most recent key for group, not just any key related to group
+			// //Find group key in list
+			// //Finds first Group key then encrypts with it.
+			// SecretKey groupKey = null;
+			// for(int i = 0; i < groupKeys.size(); i++){
+			// 	if(groupKeys.get(i).getName().compareTo(group) == 0){
+			// 		groupKey = groupKeys.get(i).getEncrypterKey();
+			// 		break;
+			// 	}
+			// }
+			// //Sanity check
+			// if(groupKey == null){
+			// 	System.out.println(">>>Error: Could not find group in list");
+			// 	return false;
+			// }
 
 			//Encrypt the file using group key
 			AESEncrypter fileEnc = new AESEncrypter(groupKey);
