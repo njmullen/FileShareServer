@@ -196,10 +196,14 @@ public class FileClient extends Client implements FileClientInterface {
 					byte[] fileEncKey = null;
 			    //Receive the group from the server
 				if(env.getMessage().compareTo("GROUP") == 0){
+					if (env.getObjContents().size() < 2) {
+						System.out.println("Error in GROUP, message length < 2, missing keyed hash");
+					}
 					AESDecrypter groupDec = new AESDecrypter(AESKey);
 					group = groupDec.decrypt((EncryptedMessage)env.getObjContents().get(0));
-					fileEncKey = (byte[])env.getObjContents().get(1);
-					//TODO: make it so fileclient sends the GROUP message with the keyed hash as the second objectcontents
+
+					AESDecrypter keyedHashDec = new AESDecrypter(AESKey);
+					fileEncKey = keyedHashDec.decryptBytes((EncryptedMessage)env.getObjContents().get(1));
 				}
 				else{
 					System.out.printf("Error: Could not retrieve group for file\n");
@@ -208,21 +212,26 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 
 				if(group == null){
-					System.out.println("Error: File does not ");
+					System.out.println("Error: Group not sent");
+				}
+				if(fileEncKey == null) {
+					System.out.println("Error: Keyedhash not sent");
 				}
 
-				//TODO make sure this works (FileEncKey)
 				//Grab correct key from groupslist by comparing the hash of the
 				//file on the server with the hash of the groups key
 				Key groupKey = null;
 				for(int i = 0; i < groupKeys.size(); i++){
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
 						boolean theresAKey = false;
-						for( Key gKey : groupKeys.get(i).keys() ) {
+						for( Key gKey : groupKeys.get(i).getKeys() ) {
 							if (getKeyedHash(gKey) == fileEncKey) {
 								groupKey = gKey;
 								theresAKey = true;
+								System.out.println("Checked a key, MATCH");
 								break;
+							} else {
+								System.out.println("Checked a key, did not match");
 							}
 							if (!theresAKey) {
 								System.out.println("Error: No matching group keyedhash to filekeyedhash");
