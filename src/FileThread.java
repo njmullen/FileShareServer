@@ -44,8 +44,13 @@ public class FileThread extends Thread
 	{
 		socket = _socket;
 		//Check next line, see above
-		serverName = socket.getInetAddress().getHostName();
-		port = socket.getLocalPort();
+		try {
+			serverName = InetAddress.getLocalHost().getHostName();
+			port = socket.getLocalPort();
+		} catch (Exception ex){
+			System.out.println("Error retrieving server information");
+			System.exit(0);
+		}
 
 		//Read in public and private keys
 		try{
