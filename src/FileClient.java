@@ -225,18 +225,21 @@ public class FileClient extends Client implements FileClientInterface {
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
 						boolean theresAKey = false;
 						for( Key gKey : groupKeys.get(i).getKeys() ) {
-							if (getKeyedHash(gKey) == fileEncKey) {
+							// System.out.println("Keyed hash in group: "+getKeyedHash(gKey));
+							// System.out.println("After decryption keyed hash: "+fileEncKey);
+
+							if (Arrays.equals(getKeyedHash(gKey), fileEncKey)) {
 								groupKey = gKey;
 								theresAKey = true;
 								System.out.println("Checked a key, MATCH");
 								break;
 							} else {
-								System.out.println("Checked a key, did not match");
+								System.out.println("Checked a key, no match yet");
 							}
-							if (!theresAKey) {
-								System.out.println("Error: No matching group keyedhash to filekeyedhash");
-								throw new IOException();
-							}
+						}
+						if (!theresAKey) {
+							System.out.println("Error: No matching group keyedhash to filekeyedhash");
+							throw new IOException();
 						}
 						break;
 					}
@@ -402,6 +405,8 @@ public class FileClient extends Client implements FileClientInterface {
 			byte[] keyedHash = getKeyedHash(groupKey);
 			EncryptedMessage encKeyedHash = hashEnc.encrypt(keyedHash);
 
+		//	System.out.println("Before sent keyed hash: "+keyedHash);
+
 			Envelope message = null, env = null;
 			//Tell the server to return the member list
 			message = new Envelope("UPLOADF");
@@ -436,22 +441,6 @@ public class FileClient extends Client implements FileClientInterface {
 			catch(Exception ex){
 				ex.printStackTrace();
 			}
-
-			// //TODO: Use most recent key for group, not just any key related to group
-			// //Find group key in list
-			// //Finds first Group key then encrypts with it.
-			// SecretKey groupKey = null;
-			// for(int i = 0; i < groupKeys.size(); i++){
-			// 	if(groupKeys.get(i).getName().compareTo(group) == 0){
-			// 		groupKey = groupKeys.get(i).getEncrypterKey();
-			// 		break;
-			// 	}
-			// }
-			// //Sanity check
-			// if(groupKey == null){
-			// 	System.out.println(">>>Error: Could not find group in list");
-			// 	return false;
-			// }
 
 			//Encrypt the file using group key
 			AESEncrypter fileEnc = new AESEncrypter(groupKey);
