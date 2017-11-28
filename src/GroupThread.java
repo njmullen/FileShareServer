@@ -975,6 +975,10 @@ public class GroupThread extends Thread
 			ex.printStackTrace();
 		}
 
+		// //TROUBLESHOOTING
+		// System.out.printf("\n>>>>READING GROUP KEYS FILE\n");
+		// System.out.printf(">>>allBytes.length = " + allBytes.length + "\n");
+
 		//Parse file text to compile a list of applicable keys
 		ArrayList<GroupKeyList> keyList = new ArrayList<GroupKeyList>();
 		StringBuilder name = new StringBuilder();
@@ -983,12 +987,20 @@ public class GroupThread extends Thread
 		boolean parsingName = true;
 		//boolean parsingFormat = false;
 		while(proceed){
+
+			// //TROUBLESHOOTING
+			// System.out.printf("\n>>>i = " + i + "\n");
+
 			//Check bound
 			if(i >= allBytes.length){
 				proceed = false;
 			}
 			//Parse Group Name
 			else if(parsingName){
+
+				// //TROUBLESHOOTING
+				// System.out.printf(">>>PARSING NAME\n");
+
 				char c = (char) allBytes[i++];
 				if(c == '|'){ //Reached the end of the group name
 
@@ -1003,8 +1015,11 @@ public class GroupThread extends Thread
 						while(c != '|'){
 							c = (char) allBytes[i++];
 						}
-
 					}
+
+					// //TROUBLESHOOTING
+					// System.out.printf(">>>name = " + name.toString() + "\n");
+
 				}
 				else{
 					name.append(c);
@@ -1013,6 +1028,10 @@ public class GroupThread extends Thread
 
 			//Parse key
 			else{
+
+				// //TROUBLESHOOTING
+				// System.out.printf(">>>PARSING KEY\n");
+
 				//Fill new byte[] with Base64 encoded key bytes
 				byte[] keyBytes = new byte[24];
 				int j = i + 23;
@@ -1021,6 +1040,9 @@ public class GroupThread extends Thread
 				while(i <= j){
 					keyBytes[k++] = allBytes[i++];
 				}
+
+				// //TROUBLESHOOTING
+				// System.out.printf(">>>keyBytes = " + new String(keyBytes) + "\n");
 
 				//Check that next character is the delimeter
 				if((char) allBytes[i++] != '|'){
@@ -1035,17 +1057,28 @@ public class GroupThread extends Thread
 				byte[] decodedKey = Base64.getDecoder().decode(keyBytes);
 				SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
 
+				// //TROUBLESHOOTING
+				// System.out.printf(">>>Created SecretKey\n");
+
 				//Check if list already contains this group
 				boolean contains = false;
-				for(i = 0; i < keyList.size(); i++){
-					if(keyList.get(i).getName().equals(name.toString())){
+				for(int x = 0; x < keyList.size(); x++){
+					if(keyList.get(x).getName().equals(name.toString())){
+						
+						//TROUBLESHOOTING
+						System.out.printf(">>>LIST CONTAINS GROUP\n");
+
 						contains = true;
-						keyList.get(i).addKey(key);
+						keyList.get(x).addKey(key);
 						break;
 					}
 				}
 				//Create new GroupKey and add to list
 				if(!contains){
+
+					//TROUBLESHOOTING
+					System.out.printf(">>>ADDING NEW GROUP TO LIST\n");
+
 					keyList.add(new GroupKeyList(name.toString(), key));
 				}
 
@@ -1054,6 +1087,9 @@ public class GroupThread extends Thread
 				parsingName = true;
 			}
 		}
+
+		// //TROUBLESHOOTING
+		// System.out.printf("\n>>>RETURNING LIST\n");
 
 		return keyList;
 	}
