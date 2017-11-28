@@ -29,13 +29,13 @@ public class FileClient extends Client implements FileClientInterface {
 	private int incrementVal = 0;
 	private EncryptedMessage encryptedVal = null;
 	private int IVSIZE = 16;
+	private PublicKey fileServerKey = null;
 
 	public void setAESKey(Key key){
 		AESKey = key;
 		//Decrypt the increment value
 		AESDecrypter valDecr = new AESDecrypter(AESKey);
 		incrementVal = valDecr.decryptInt(encryptedVal);
-		System.out.println("CLIENT" + incrementVal);
 	}
 
 	public boolean getGroupServerKey(String server, int port){
@@ -84,24 +84,25 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public PublicKey getPublicKey(){
-		byte[] publicKeyBytes = null;
-		PublicKey publicKey = null;
+		Envelope message = null;
+		Envelope response = null;
+		PublicKey publicKey;
 
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			File publicKeyFile = new File("filePublicKey");
-			FileInputStream input = new FileInputStream(publicKeyFile);
-			publicKeyBytes = new byte[input.available()];
-			input.read(publicKeyBytes);
-			input.close();
+		try{
+			message = new Envelope("GETPUBLICKEY");
+			output.writeObject(message);
 
-			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-			publicKey = keyFactory.generatePublic(publicKeySpec);
-		} catch (Exception ex){
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("KEY")){
+				publicKey = (PublicKey)response.getObjContents().get(0);
+				fileServerKey = publicKey;
+				return publicKey;
+			}
+		} catch(Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKey;
+		return null;
 	}
 
 	public EncryptedMessage increment(){
@@ -179,34 +180,49 @@ public class FileClient extends Client implements FileClientInterface {
 
 		File file = new File(destFile);
 	    try {
-		    	file.createNewFile();
-			    FileOutputStream fos = new FileOutputStream(file);
-
+		    	
 			    Envelope env = new Envelope("DOWNLOADF"); //Success
 
 			    AESEncrypter fileEnc = new AESEncrypter(AESKey);
 			    EncryptedMessage sourceEnc = fileEnc.encrypt(sourceFile);
 			    env.addObject(sourceEnc);
 			    env.addObject(token);
+			    //Add increment value
+				EncryptedMessage increment = increment();
+				env.addObject(increment);
 			    output.writeObject(env);
 
 			    env = (Envelope)input.readObject();
 
 			    String group = null;
-					byte[] fileEncKey = null;
+				byte[] fileEncKey = null;
+
 			    //Receive the group from the server
 				if(env.getMessage().compareTo("GROUP") == 0){
 					if (env.getObjContents().size() < 2) {
 						System.out.println("Error in GROUP, message length < 2, missing keyed hash");
 					}
+		
 					AESDecrypter groupDec = new AESDecrypter(AESKey);
 					group = groupDec.decrypt((EncryptedMessage)env.getObjContents().get(0));
 
 					AESDecrypter keyedHashDec = new AESDecrypter(AESKey);
 					fileEncKey = keyedHashDec.decryptBytes((EncryptedMessage)env.getObjContents().get(1));
-				}
-				else{
+
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(2);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
+				} else{
 					System.out.printf("Error: Could not retrieve group for file\n");
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 					System.out.printf("Message contents: %s\n", env.getMessage());
 					return false;
 				}
@@ -228,10 +244,9 @@ public class FileClient extends Client implements FileClientInterface {
 							if (Arrays.equals(getKeyedHash(gKey), fileEncKey)) {
 								groupKey = gKey;
 								theresAKey = true;
-								System.out.println("Checked a key, MATCH");
 								break;
 							} else {
-								System.out.println("Checked a key, no match yet");
+								//
 							}
 						}
 						if (!theresAKey) {
@@ -243,6 +258,8 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 
 				env = (Envelope)input.readObject();
+				file.createNewFile();
+			    FileOutputStream fos = new FileOutputStream(file);
 
 			    //TODO: Ensure bounds
 			    //Read in IvSpec and entire encrypted file
@@ -259,9 +276,6 @@ public class FileClient extends Client implements FileClientInterface {
 							break;
 						}
 					}
-
-					//TROUBLESHOOTING
-					System.out.println(">>>messageSize = " + messageSize);
 
 					int ind = 0;
 
@@ -306,28 +320,28 @@ public class FileClient extends Client implements FileClientInterface {
 				fos.close();
 
 			    if(env.getMessage().compareTo("EOF")==0) {
-			    	 fos.close();
-						System.out.printf("\nTransfer successful file %s\n", sourceFile);
-						env = new Envelope("OK"); //Success
-						output.writeObject(env);
+			    	fos.close();
+					System.out.printf("\nTransfer successful file %s\n", sourceFile);
+					env = new Envelope("OK"); //Success
+					//Add increment value
+					EncryptedMessage increment2 = increment();
+					env.addObject(increment2);
+					output.writeObject(env);
+				} else {
+					System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
+					file.delete();
+					return false;
 				}
-				else {
-						System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
-						file.delete();
-						return false;
-				}
-
 	    } catch (IOException e1) {
-				e1.printStackTrace();
+			e1.printStackTrace();
 	    	System.out.printf("Error couldn't create file %s\n", destFile);
 	    	return false;
-
-
 		}
 	    catch (ClassNotFoundException e1) {
 			e1.printStackTrace();
 		}
-		 return true;
+
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -338,14 +352,16 @@ public class FileClient extends Client implements FileClientInterface {
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
 			 message.addObject(token); //Add requester's token
+			 //Add increment value
+			 EncryptedMessage increment = increment();
+			 message.addObject(increment);
 			 output.writeObject(message);
 
 			 e = (Envelope)input.readObject();
 
 
 			 //If server indicates success, return the member list
-			 if(e.getMessage().equals("OK"))
-			 {
+			 if(e.getMessage().equals("OK")){
 				int size = (int)e.getObjContents().get(0);
 				List<String> fileList = new ArrayList<String>();
 				for(int i = 1; i < size + 1; i++){
@@ -354,7 +370,15 @@ public class FileClient extends Client implements FileClientInterface {
 			 		String thisMember = listDecr.decrypt(encList);
 			 		fileList.add(thisMember);
 			 	}
+			 	//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)e.getObjContents().get(size + 1);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 			 	return fileList;
+			 } else {
+			 	System.out.println("Error: " + e.getMessage());
 			 }
 
 			 return null;
@@ -402,6 +426,19 @@ public class FileClient extends Client implements FileClientInterface {
 			byte[] keyedHash = getKeyedHash(groupKey);
 			EncryptedMessage encKeyedHash = hashEnc.encrypt(keyedHash);
 
+			//Read in entire file
+			byte[] fileBytes = new byte[1];
+			try{
+				FileInputStream fis = new FileInputStream(sourceFile);
+				fileBytes = new byte[fis.available()];
+				fis.read(fileBytes);
+				fis.close();
+			} catch(Exception ex){
+				System.out.println("Upload Failed. File either does not exist or another error has occured");
+				//ex.printStackTrace();
+				return false;
+			}
+
 			Envelope message = null, env = null;
 			//Tell the server to return the member list
 			message = new Envelope("UPLOADF");
@@ -409,7 +446,9 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(_group);
 			message.addObject(token); //Add requester's token
 			message.addObject(encKeyedHash); //Add hash of group's key
-			//INCREMENT???
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
 
 			output.writeObject(message);
 
@@ -422,19 +461,13 @@ public class FileClient extends Client implements FileClientInterface {
 			}
 			else {
 				System.out.printf("Upload failed: %s\n", env.getMessage());
+				//Check increment value
+				EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+				if(!checkIncrement(incrementIn)){
+					System.out.println("Client Replay detected");
+					System.exit(0);
+				}
 				return false;
-			}
-
-			//Read in entire file
-			byte[] fileBytes = new byte[1];
-			try{
-				FileInputStream fis = new FileInputStream(sourceFile);
-				fileBytes = new byte[fis.available()];
-				fis.read(fileBytes);
-				fis.close();
-			}
-			catch(Exception ex){
-				ex.printStackTrace();
 			}
 
 			//Encrypt the file using group key
@@ -499,12 +532,24 @@ public class FileClient extends Client implements FileClientInterface {
 				output.writeObject(message);
 
 				env = (Envelope)input.readObject();
+
 				if(env.getMessage().compareTo("OK")==0) {
 					System.out.printf("\nFile data upload successful\n");
+					//Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 				}
 				else {
-
 					 System.out.printf("\nUpload failed: %s\n", env.getMessage());
+					 //Check increment value
+					EncryptedMessage incrementIn = (EncryptedMessage)env.getObjContents().get(0);
+					if(!checkIncrement(incrementIn)){
+						System.out.println("Client Replay detected");
+						System.exit(0);
+					}
 					 return false;
 				 }
 
@@ -538,10 +583,21 @@ public class FileClient extends Client implements FileClientInterface {
 
 			response = (Envelope)input.readObject();
 			if(response.getMessage().equals("OK")){
+				//Gets the S and verifies its signature
 				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				byte[] sSigned = (byte[])response.getObjContents().get(1);
+
+				Signature dhSig = Signature.getInstance("RSA");
+				dhSig.initVerify(fileServerKey);
+				dhSig.update(S.toByteArray());
+				if(!dhSig.verify(sSigned)){
+					System.out.println("Unable to verify DH signature");
+					System.exit(0);
+				}
+
 				//Grabs the encrypted increment value which will be decrypted
 				//once the client calculates the shared AES key
-				encryptedVal = (EncryptedMessage)response.getObjContents().get(1);
+				encryptedVal = (EncryptedMessage)response.getObjContents().get(2);
 				return S;
 			}
 			return null;

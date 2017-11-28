@@ -80,10 +80,23 @@ public class AESEncrypter {
     return send;
   }
 
+  public boolean checkIV(byte[] ivBytes){
+    for(byte b : ivBytes){
+      if (b == 0){
+        return false;
+      }
+    }
+    return true;
+  }
+
   //Generate a 128-bit random IV 
   public IvParameterSpec updateIV() {
-    byte[] ivBytes = new byte[16];
-    rand.nextBytes(ivBytes);
+    byte[] ivBytes = null;
+    do{
+      ivBytes = new byte[16];
+      rand.nextBytes(ivBytes);
+    } while (!checkIV(ivBytes));
+
     IvParameterSpec AESIVSpec = new IvParameterSpec(ivBytes);
     return AESIVSpec;
   }
