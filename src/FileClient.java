@@ -346,7 +346,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group,
-			EncryptedToken token, ArrayList<GroupKey> groupKeys) {
+			EncryptedToken token, ArrayList<GroupKeyList> groupKeys) {
 
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;
@@ -368,6 +368,9 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(dest);
 			message.addObject(_group);
 			message.addObject(token); //Add requester's token
+
+			//INCREMENT???
+
 			output.writeObject(message);
 
 			env = (Envelope)input.readObject();

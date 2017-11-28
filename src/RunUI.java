@@ -35,7 +35,7 @@ public class RunUI {
 
     Key gsAESKey = null;
     Key fsAESKey = null;
-    ArrayList<GroupKey> groupKeys = null;
+    ArrayList<GroupKeyList> groupKeys = null;
 
     Security.addProvider(new BouncyCastleProvider());
 
