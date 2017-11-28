@@ -51,7 +51,7 @@ public class GroupKeyList implements java.io.Serializable{
 		return name;
 	}
 
-	public SecretKey getDecrypterKey(){
+	public SecretKey getEncrypterKey(){
 		return mostRecent;
 	}
 

@@ -30,7 +30,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	private EncryptedToken tokenObj = null;
 	private EncryptedMessage encryptedVal = null;
 	private int incrementVal = 0;
-	private ArrayList<GroupKey> groupKeys = new ArrayList<GroupKey>();
+	private ArrayList<GroupKeyList> groupKeys = new ArrayList<GroupKeyList>();
 
 
 	public PublicKey getPublicKey(){
@@ -176,12 +176,12 @@ public class GroupClient extends Client implements GroupClientInterface {
 				}
 
 	 			//Decrypt the list of group keys
-	 			ArrayList<EncryptedGroupKey> encList = (ArrayList<EncryptedGroupKey>)response.getObjContents().get(1);
+	 			ArrayList<EncryptedGroupKeyList> encList = (ArrayList<EncryptedGroupKeyList>)response.getObjContents().get(1);
 
 
-	 			groupKeys = new ArrayList<GroupKey>();
+	 			groupKeys = new ArrayList<GroupKeyList>();
 	 			for(int i = 0; i < encList.size(); i++){
-	 				groupKeys.add(encList.get(i).getDecrypted(AESKey));
+	 				groupKeys.add(encList.get(i).getDecryptedList(AESKey));
 	 			}
 				// System.out.println("Enclist from groupthead "+encList.size());
 				//TROUBLESHOOTING
