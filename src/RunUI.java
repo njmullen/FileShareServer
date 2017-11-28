@@ -372,11 +372,12 @@ public class RunUI {
     //said invalid password and kicked user out before this is reached
     token = gc.getToken(username, fileServerChoice, filePort);
     groupKeys = gc.getGroupKeys();
-    // //TROUBLESHOOTING
-    // System.out.println("GroupKeySize after login "+groupKeys.size());
-    // for( GroupKey k : groupKeys ) {
-    //   System.out.println(k.getName());
-    // }
+
+    //TROUBLESHOOTING
+    System.out.println("\nYou are "+groupKeys.size()+" groups.");
+    for( GroupKeyList k : groupKeys ) {
+      System.out.println("Group "+k.getName());
+    }
 
     if (token == null){
         System.out.println("Invalid username");

@@ -148,16 +148,21 @@ public class FileThread extends Thread
 						if(e.getObjContents().get(2) == null) {
 							response = new Envelope("FAIL-BADTOKEN");
 						}
+						if(e.getObjContents().get(3) == null) {
+							response = new Envelope("FAIL-BADKEYEDHASH");
+						}
 						else {
 
 							EncryptedMessage encPat = (EncryptedMessage)e.getObjContents().get(0);
 							EncryptedMessage groupPat = (EncryptedMessage)e.getObjContents().get(1);
 							EncryptedToken encTok = (EncryptedToken)e.getObjContents().get(2);
+							EncryptedMessage encHash = (EncryptedMessage)e.getObjContents().get(3);
 
 							AESDecrypter patDec = new AESDecrypter(AESKey);
 							AESDecrypter groupDec = new AESDecrypter(AESKey);
 							AESDecrypter tokDec = new AESDecrypter(AESKey);
 							AESDecrypter sigDec = new AESDecrypter(AESKey);
+							AESDecrypter hashDec = new AESDecrypter(AESKey);
 
 							String remotePath = patDec.decrypt(encPat);
 							String group = groupDec.decrypt(groupPat);
@@ -167,6 +172,7 @@ public class FileThread extends Thread
 
 							byte[] tokBytes = tokDec.decryptBytes(tokenP);
 							byte[] sigBytes = sigDec.decryptBytes(sigP);
+							byte[] keyedHashBytes = hashDec.decryptBytes(encHash);
 
 							if(!verifySig(tokBytes, sigBytes)){
 								System.out.printf("INVALID SIGNATURE!");
@@ -222,7 +228,7 @@ public class FileThread extends Thread
 
 								if(e.getMessage().compareTo("EOF")==0) {
 									System.out.printf("Transfer successful file %s\n", remotePath);
-									FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
+									FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, keyedHashBytes);
 									response = new Envelope("OK"); //Success
 								}
 								else {

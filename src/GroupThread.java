@@ -155,6 +155,7 @@ public class GroupThread extends Thread
 						ArrayList<GroupKeyList> groupKeys = getGroupKeys(newGroupList);
 
 						ArrayList<EncryptedGroupKeyList> encGroupKeys = new ArrayList<EncryptedGroupKeyList>();
+
 						for(int i = 0; i < groupKeys.size(); i++){
 							encGroupKeys.add(groupKeys.get(i).getEncryptedList(AESKey));
 						}
