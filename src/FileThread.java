@@ -304,8 +304,14 @@ public class FileThread extends Thread
 							//Send a message containing the group for the file
 							AESEncrypter groupEnc = new AESEncrypter(AESKey);
 							EncryptedMessage encGroup = groupEnc.encrypt(sf.getGroup());
+
+							//Send the keyhash that the file was encrypted with
+							AESEncrypter keyedHashEnc = new AESEncrypter(AESKey);
+							EncryptedMessage encKeyedHash = keyedHashEnc.encrypt(sf.getKeyedHash());
+
 							e = new Envelope("GROUP");
 							e.addObject(encGroup);
+							e.addObject(encKeyedHash);
 							output.writeObject(e);
 							FileInputStream fis = new FileInputStream(f);
 
