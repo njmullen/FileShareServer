@@ -34,6 +34,8 @@ public class FileThread extends Thread
 	private String serverName = null;
 	private int port = 0;
 	private int incrementVal = 0;
+	private PublicKey publicKey = null;
+	private PrivateKey privateKey = null;
 
 	//TODO: Check that serverName = socket.getInet()... works on something
 	//other than localhost
@@ -44,6 +46,30 @@ public class FileThread extends Thread
 		//Check next line, see above
 		serverName = socket.getInetAddress().getHostName();
 		port = socket.getLocalPort();
+
+		//Read in public and private keys
+		try{
+			File privateKeyFile = new File("filePrivateKey");
+			FileInputStream input = new FileInputStream(privateKeyFile);
+			byte[] privateKeyBytes = new byte[input.available()];
+			input.read(privateKeyBytes);
+			input.close();
+
+			PKCS8EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			privateKey = keyFactory.generatePrivate(privateKeySpec);
+
+			File publicKeyFile = new File("filePublicKey");
+			FileInputStream keyIn = new FileInputStream(publicKeyFile);
+			byte[] publicKeyBytes = new byte[keyIn.available()];
+			keyIn.read(publicKeyBytes);
+			keyIn.close();
+
+			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+			publicKey = keyFactory.generatePublic(publicKeySpec);
+		} catch (Exception ex){
+			ex.printStackTrace();
+		}
 
 	}
 
@@ -223,10 +249,6 @@ public class FileThread extends Thread
 
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
-
-									// EncryptedMessage encBuf = (EncryptedMessage)e.getObjContents().get(0);
-
-									// AESDecrypter decBuf = new AESDecrypter(AESKey);
 
 									byte[] toWrite = (byte[])e.getObjContents().get(0);
 
@@ -518,6 +540,21 @@ public class FileThread extends Thread
 
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
+				 	byte[] sSigned = null;
+
+				 	//Sign the S of the D-H exchange
+				 	try { 
+				 		byte[] sBytes = S.toByteArray();
+				 		Security.addProvider(new BouncyCastleProvider());
+				 		Signature signDH = Signature.getInstance("RSA");
+				 		signDH.initSign(privateKey);
+				 		signDH.update(sBytes);
+				 		sSigned = signDH.sign();
+				 	} catch (Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response.addObject(sSigned);
 
 				 	//Write out and set increment value
 				 	Random rand = new Random();
@@ -526,8 +563,11 @@ public class FileThread extends Thread
 				 	EncryptedMessage value = valEncr.encrypt(incrementVal);
 				 	response.addObject(value);
 
-
 				 	output.writeObject(response);
+				} else if (e.getMessage().equals("GETPUBLICKEY")){
+					response = new Envelope("KEY");
+					response.addObject(publicKey);
+					output.writeObject(response);
 				}
 
 
@@ -573,7 +613,7 @@ public class FileThread extends Thread
 		AESDecrypter aesDecr = new AESDecrypter(AESKey);
 		int incrementSent = aesDecr.decryptInt(incrementEnc);
 		incrementVal++;
-
+		
 		if(incrementVal != incrementSent){
 			return false;
 		} else{

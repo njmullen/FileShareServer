@@ -29,13 +29,13 @@ public class FileClient extends Client implements FileClientInterface {
 	private int incrementVal = 0;
 	private EncryptedMessage encryptedVal = null;
 	private int IVSIZE = 16;
+	private PublicKey fileServerKey = null;
 
 	public void setAESKey(Key key){
 		AESKey = key;
 		//Decrypt the increment value
 		AESDecrypter valDecr = new AESDecrypter(AESKey);
 		incrementVal = valDecr.decryptInt(encryptedVal);
-		System.out.println("CLIENT" + incrementVal);
 	}
 
 	public boolean getGroupServerKey(String server, int port){
@@ -84,24 +84,25 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public PublicKey getPublicKey(){
-		byte[] publicKeyBytes = null;
-		PublicKey publicKey = null;
+		Envelope message = null;
+		Envelope response = null;
+		PublicKey publicKey;
 
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			File publicKeyFile = new File("filePublicKey");
-			FileInputStream input = new FileInputStream(publicKeyFile);
-			publicKeyBytes = new byte[input.available()];
-			input.read(publicKeyBytes);
-			input.close();
+		try{
+			message = new Envelope("GETPUBLICKEY");
+			output.writeObject(message);
 
-			X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-			publicKey = keyFactory.generatePublic(publicKeySpec);
-		} catch (Exception ex){
+			response = (Envelope)input.readObject();
+			if(response.getMessage().equals("KEY")){
+				publicKey = (PublicKey)response.getObjContents().get(0);
+				fileServerKey = publicKey;
+				return publicKey;
+			}
+		} catch(Exception ex){
 			ex.printStackTrace();
 		}
 
-		return publicKey;
+		return null;
 	}
 
 	public EncryptedMessage increment(){
@@ -179,9 +180,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 		File file = new File(destFile);
 	    try {
-		    	file.createNewFile();
-			    FileOutputStream fos = new FileOutputStream(file);
-
+		    	
 			    Envelope env = new Envelope("DOWNLOADF"); //Success
 
 			    AESEncrypter fileEnc = new AESEncrypter(AESKey);
@@ -245,10 +244,9 @@ public class FileClient extends Client implements FileClientInterface {
 							if (Arrays.equals(getKeyedHash(gKey), fileEncKey)) {
 								groupKey = gKey;
 								theresAKey = true;
-								System.out.println("Checked a key, MATCH");
 								break;
 							} else {
-								System.out.println("Checked a key, no match yet");
+								//
 							}
 						}
 						if (!theresAKey) {
@@ -260,6 +258,8 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 
 				env = (Envelope)input.readObject();
+				file.createNewFile();
+			    FileOutputStream fos = new FileOutputStream(file);
 
 			    //TODO: Ensure bounds
 			    //Read in IvSpec and entire encrypted file
@@ -276,9 +276,6 @@ public class FileClient extends Client implements FileClientInterface {
 							break;
 						}
 					}
-
-					//TROUBLESHOOTING
-					System.out.println(">>>messageSize = " + messageSize);
 
 					int ind = 0;
 
@@ -429,6 +426,19 @@ public class FileClient extends Client implements FileClientInterface {
 			byte[] keyedHash = getKeyedHash(groupKey);
 			EncryptedMessage encKeyedHash = hashEnc.encrypt(keyedHash);
 
+			//Read in entire file
+			byte[] fileBytes = new byte[1];
+			try{
+				FileInputStream fis = new FileInputStream(sourceFile);
+				fileBytes = new byte[fis.available()];
+				fis.read(fileBytes);
+				fis.close();
+			} catch(Exception ex){
+				System.out.println("Upload Failed. File either does not exist or another error has occured");
+				//ex.printStackTrace();
+				return false;
+			}
+
 			Envelope message = null, env = null;
 			//Tell the server to return the member list
 			message = new Envelope("UPLOADF");
@@ -458,18 +468,6 @@ public class FileClient extends Client implements FileClientInterface {
 					System.exit(0);
 				}
 				return false;
-			}
-
-			//Read in entire file
-			byte[] fileBytes = new byte[1];
-			try{
-				FileInputStream fis = new FileInputStream(sourceFile);
-				fileBytes = new byte[fis.available()];
-				fis.read(fileBytes);
-				fis.close();
-			}
-			catch(Exception ex){
-				ex.printStackTrace();
 			}
 
 			//Encrypt the file using group key
@@ -585,10 +583,21 @@ public class FileClient extends Client implements FileClientInterface {
 
 			response = (Envelope)input.readObject();
 			if(response.getMessage().equals("OK")){
+				//Gets the S and verifies its signature
 				BigInteger S = (BigInteger)response.getObjContents().get(0);
+				byte[] sSigned = (byte[])response.getObjContents().get(1);
+
+				Signature dhSig = Signature.getInstance("RSA");
+				dhSig.initVerify(fileServerKey);
+				dhSig.update(S.toByteArray());
+				if(!dhSig.verify(sSigned)){
+					System.out.println("Unable to verify DH signature");
+					System.exit(0);
+				}
+
 				//Grabs the encrypted increment value which will be decrypted
 				//once the client calculates the shared AES key
-				encryptedVal = (EncryptedMessage)response.getObjContents().get(1);
+				encryptedVal = (EncryptedMessage)response.getObjContents().get(2);
 				return S;
 			}
 			return null;
