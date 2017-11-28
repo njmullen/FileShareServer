@@ -374,12 +374,6 @@ public class RunUI {
     token = gc.getToken(username, fileServerChoice, filePort);
     groupKeys = gc.getGroupKeys();
 
-    //TROUBLESHOOTING
-    System.out.println("\nYou are "+groupKeys.size()+" groups.");
-    for( GroupKeyList k : groupKeys ) {
-      System.out.println("Group "+k.getName());
-    }
-
     if (token == null){
         System.out.println("Invalid username");
         gc.disconnect();
@@ -392,7 +386,7 @@ public class RunUI {
     //Loop to allow user to switch between GroupServer ops and FileServer ops in same session
     int serverChoice = -1;
     while(serverChoice != 0){
-        System.out.println("Welcome, " + username + "!\n");
+        System.out.println("\nWelcome, " + username + "!\n");
         System.out.println("1. Group operations");
         System.out.println("2. File operations\n");
         System.out.println("0. Disconnect and Exit\n");

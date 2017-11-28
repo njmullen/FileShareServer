@@ -612,6 +612,21 @@ public class GroupThread extends Thread
 
 				 	response = new Envelope("OK");
 				 	response.addObject(S);
+				 	byte[] sSigned = null;
+				 	
+				 	//Sign the S of the D-H exchange
+				 	try { 
+				 		byte[] sBytes = S.toByteArray();
+				 		Security.addProvider(new BouncyCastleProvider());
+				 		Signature signDH = Signature.getInstance("RSA");
+				 		signDH.initSign(privateKey);
+				 		signDH.update(sBytes);
+				 		sSigned = signDH.sign();
+				 	} catch (Exception ex){
+				 		ex.printStackTrace();
+				 	}
+
+				 	response.addObject(sSigned);
 
 				 	//Write out and set increment value
 				 	Random rand = new Random();
@@ -758,12 +773,10 @@ public class GroupThread extends Thread
 					}
 
 					//Generate new file key for each group that deleted the user.
-					System.out.println("At delete group keys");
 					for (String g : deleteFromGroups ) {
 						//only gen for groups we aren't deleting the owner of
 						//if(!deleteOwnedGroup.contains(g))
 						genNewGroupKey(g);
-						System.out.println("New GroupKey for "+g);
 					 	//}
 				 	}
 
@@ -975,10 +988,6 @@ public class GroupThread extends Thread
 			ex.printStackTrace();
 		}
 
-		// //TROUBLESHOOTING
-		// System.out.printf("\n>>>>READING GROUP KEYS FILE\n");
-		// System.out.printf(">>>allBytes.length = " + allBytes.length + "\n");
-
 		//Parse file text to compile a list of applicable keys
 		ArrayList<GroupKeyList> keyList = new ArrayList<GroupKeyList>();
 		StringBuilder name = new StringBuilder();
@@ -988,18 +997,12 @@ public class GroupThread extends Thread
 		//boolean parsingFormat = false;
 		while(proceed){
 
-			// //TROUBLESHOOTING
-			// System.out.printf("\n>>>i = " + i + "\n");
-
 			//Check bound
 			if(i >= allBytes.length){
 				proceed = false;
 			}
 			//Parse Group Name
 			else if(parsingName){
-
-				// //TROUBLESHOOTING
-				// System.out.printf(">>>PARSING NAME\n");
 
 				char c = (char) allBytes[i++];
 				if(c == '|'){ //Reached the end of the group name
@@ -1016,10 +1019,6 @@ public class GroupThread extends Thread
 							c = (char) allBytes[i++];
 						}
 					}
-
-					// //TROUBLESHOOTING
-					// System.out.printf(">>>name = " + name.toString() + "\n");
-
 				}
 				else{
 					name.append(c);
@@ -1028,10 +1027,6 @@ public class GroupThread extends Thread
 
 			//Parse key
 			else{
-
-				// //TROUBLESHOOTING
-				// System.out.printf(">>>PARSING KEY\n");
-
 				//Fill new byte[] with Base64 encoded key bytes
 				byte[] keyBytes = new byte[24];
 				int j = i + 23;
@@ -1040,9 +1035,6 @@ public class GroupThread extends Thread
 				while(i <= j){
 					keyBytes[k++] = allBytes[i++];
 				}
-
-				// //TROUBLESHOOTING
-				// System.out.printf(">>>keyBytes = " + new String(keyBytes) + "\n");
 
 				//Check that next character is the delimeter
 				if((char) allBytes[i++] != '|'){
@@ -1057,17 +1049,10 @@ public class GroupThread extends Thread
 				byte[] decodedKey = Base64.getDecoder().decode(keyBytes);
 				SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
 
-				// //TROUBLESHOOTING
-				// System.out.printf(">>>Created SecretKey\n");
-
 				//Check if list already contains this group
 				boolean contains = false;
 				for(int x = 0; x < keyList.size(); x++){
 					if(keyList.get(x).getName().equals(name.toString())){
-						
-						//TROUBLESHOOTING
-						System.out.printf(">>>LIST CONTAINS GROUP\n");
-
 						contains = true;
 						keyList.get(x).addKey(key);
 						break;
@@ -1075,10 +1060,6 @@ public class GroupThread extends Thread
 				}
 				//Create new GroupKey and add to list
 				if(!contains){
-
-					//TROUBLESHOOTING
-					System.out.printf(">>>ADDING NEW GROUP TO LIST\n");
-
 					keyList.add(new GroupKeyList(name.toString(), key));
 				}
 
@@ -1087,9 +1068,6 @@ public class GroupThread extends Thread
 				parsingName = true;
 			}
 		}
-
-		// //TROUBLESHOOTING
-		// System.out.printf("\n>>>RETURNING LIST\n");
 
 		return keyList;
 	}
