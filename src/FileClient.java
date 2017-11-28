@@ -193,11 +193,13 @@ public class FileClient extends Client implements FileClientInterface {
 			    env = (Envelope)input.readObject();
 
 			    String group = null;
-
+					byte[] fileEncKey = null;
 			    //Receive the group from the server
 				if(env.getMessage().compareTo("GROUP") == 0){
 					AESDecrypter groupDec = new AESDecrypter(AESKey);
 					group = groupDec.decrypt((EncryptedMessage)env.getObjContents().get(0));
+					fileEncKey = (byte[])env.getObjContents().get(1);
+					//TODO: make it so fileclient sends the GROUP message with the keyed hash as the second objectcontents
 				}
 				else{
 					System.out.printf("Error: Could not retrieve group for file\n");
@@ -209,12 +211,24 @@ public class FileClient extends Client implements FileClientInterface {
 					System.out.println("Error: File does not ");
 				}
 
-				//Grab group key from list
-				//Have to figure out how we'll hash keys and deal with multiple old keys
-				SecretKey groupKey = null;
+				//TODO make sure this works (FileEncKey)
+				//Grab correct key from groupslist by comparing the hash of the
+				//file on the server with the hash of the groups key
+				Key groupKey = null;
 				for(int i = 0; i < groupKeys.size(); i++){
 					if(groupKeys.get(i).getName().compareTo(group) == 0){
-						groupKey = groupKeys.get(i).getKey();
+						boolean theresAKey = false;
+						for( Key gKey : groupKeys.get(i).keys() ) {
+							if (getKeyedHash(gKey) == fileEncKey) {
+								groupKey = gKey;
+								theresAKey = true;
+								break;
+							}
+							if (!theresAKey) {
+								System.out.println("Error: No matching group keyedhash to filekeyedhash");
+								throw new IOException();
+							}
+						}
 						break;
 					}
 				}
