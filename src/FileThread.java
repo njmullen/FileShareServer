@@ -47,6 +47,7 @@ public class FileThread extends Thread
 		try {
 			serverName = InetAddress.getLocalHost().getHostName();
 			port = socket.getLocalPort();
+			System.out.println("ServerName: " + serverName);
 		} catch (Exception ex){
 			System.out.println("Error retrieving server information");
 			System.exit(0);
@@ -133,8 +134,15 @@ public class FileThread extends Thread
 				    		String tokenServer = newToken.getFileServer();
 				    		int tokenPort = newToken.getFilePort();
 
-				    		if(!serverName.equals(tokenServer) || port != tokenPort){
-				    			System.out.println("Token invalid for this server");
+				    		//If the servername is "localhost" then the user is running the
+				    		//file server on their own computer, and thus would have access
+				    		//to all files anyway, so file leakage is not an issue
+				    		if (tokenServer.equals("localhost")){
+				    			serverName = "localhost";
+				    		//If the servername is not localhost, ensure the token was 
+				    		//meant for this server
+				    		} else if(!serverName.equals(tokenServer) || port != tokenPort){
+				    			System.out.println("Token is not authorized for this server (ULError)");
 				    			System.exit(0);
 				    		}
 
@@ -230,7 +238,14 @@ public class FileThread extends Thread
 				    		String tokenServer = yourToken.getFileServer();
 				    		int tokenPort = yourToken.getFilePort();
 
-				    		if(!serverName.equals(tokenServer) || port != tokenPort){
+				    		//If the servername is "localhost" then the user is running the
+				    		//file server on their own computer, and thus would have access
+				    		//to all files anyway, so file leakage is not an issue
+				    		if (tokenServer.equals("localhost")){
+				    			serverName = "localhost";
+				    		//If the servername is not localhost, ensure the token was 
+				    		//meant for this server
+				    		} else if(!serverName.equals(tokenServer) || port != tokenPort){
 				    			System.out.println("Token is not authorized for this server (ULError)");
 				    			System.exit(0);
 				    		}
@@ -315,8 +330,15 @@ public class FileThread extends Thread
 		    		String tokenServer = t.getFileServer();
 		    		int tokenPort = t.getFilePort();
 
-		    		if(!serverName.equals(tokenServer) || port != tokenPort){
-		    			System.out.println("Token invalid for this server");
+		    		//If the servername is "localhost" then the user is running the
+		    		//file server on their own computer, and thus would have access
+		    		//to all files anyway, so file leakage is not an issue
+		    		if (tokenServer.equals("localhost")){
+		    			serverName = "localhost";
+		    		//If the servername is not localhost, ensure the token was 
+		    		//meant for this server
+		    		} else if(!serverName.equals(tokenServer) || port != tokenPort){
+		    			System.out.println("Token is not authorized for this server (ULError)");
 		    			System.exit(0);
 		    		}
 
@@ -449,8 +471,15 @@ public class FileThread extends Thread
 			    		String tokenServer = t.getFileServer();
 			    		int tokenPort = t.getFilePort();
 
-			    		if(!serverName.equals(tokenServer) || port != tokenPort){
-			    			System.out.println("Token invalid for this server");
+			    		//If the servername is "localhost" then the user is running the
+			    		//file server on their own computer, and thus would have access
+			    		//to all files anyway, so file leakage is not an issue
+			    		if (tokenServer.equals("localhost")){
+			    			serverName = "localhost";
+			    		//If the servername is not localhost, ensure the token was 
+			    		//meant for this server
+			    		} else if(!serverName.equals(tokenServer) || port != tokenPort){
+			    			System.out.println("Token is not authorized for this server (ULError)");
 			    			System.exit(0);
 			    		}
 
