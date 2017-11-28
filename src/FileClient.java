@@ -172,7 +172,7 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	public boolean download(String sourceFile, String destFile, EncryptedToken token, ArrayList<GroupKey> groupKeys) {
+	public boolean download(String sourceFile, String destFile, EncryptedToken token, ArrayList<GroupKeyListy> groupKeys) {
 		if (sourceFile.charAt(0)=='/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -211,13 +211,13 @@ public class FileClient extends Client implements FileClientInterface {
 
 				//Grab group key from list
 				//Have to figure out how we'll hash keys and deal with multiple old keys
-				SecretKey groupKey = null;
-				for(int i = 0; i < groupKeys.size(); i++){
-					if(groupKeys.get(i).getName().compareTo(group) == 0){
-						groupKey = groupKeys.get(i).getKey();
-						break;
-					}
-				}
+				// SecretKey groupKey = null;
+				// for(int i = 0; i < groupKeys.size(); i++){
+				// 	if(groupKeys.get(i).getName().compareTo(group) == 0){
+				// 		groupKey = groupKeys.get(i).getKey();
+				// 		break;
+				// 	}
+				// }
 
 				env = (Envelope)input.readObject();
 
@@ -346,7 +346,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group,
-			EncryptedToken token, ArrayList<GroupKey> groupKeys) {
+			EncryptedToken token, ArrayList<GroupKeyList> groupKeys) {
 
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;

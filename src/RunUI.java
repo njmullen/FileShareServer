@@ -35,7 +35,7 @@ public class RunUI {
 
     Key gsAESKey = null;
     Key fsAESKey = null;
-    ArrayList<GroupKey> groupKeys = null;
+    ArrayList<GroupKeyList> groupKeys = null;
 
     Security.addProvider(new BouncyCastleProvider());
 
@@ -374,7 +374,7 @@ public class RunUI {
     groupKeys = gc.getGroupKeys();
     //TROUBLESHOOTING
     System.out.println("\nYou are "+groupKeys.size()+" groups.");
-    for( GroupKey k : groupKeys ) {
+    for( GroupKeyList k : groupKeys ) {
       System.out.println("Group "+k.getName());
     }
 
