@@ -261,7 +261,6 @@ public class FileClient extends Client implements FileClientInterface {
 				file.createNewFile();
 			    FileOutputStream fos = new FileOutputStream(file);
 
-			    //TODO: Ensure bounds
 			    //Read in IvSpec and entire encrypted file
 			    boolean readingIV = true;
 			    byte[] ivBytes = new byte[1];
@@ -269,19 +268,10 @@ public class FileClient extends Client implements FileClientInterface {
 				while (env.getMessage().compareTo("CHUNK")==0) {
 					byte[] bytesIn = (byte[])env.getObjContents().get(0);
 					int messageSize = (Integer)env.getObjContents().get(1); //We do not want the null term
-					//Check for null term
-					for(int i = 0; i < messageSize; i++){
-						if(bytesIn[i] == (byte)0){
-							messageSize = i;
-							break;
-						}
-					}
-
 					int ind = 0;
 
 					//Check if reading the IVSpec
 					if(readingIV){
-
 						ivBytes = new byte[IVSIZE];
 						for(int i = 0; i < IVSIZE; i++){
 							ivBytes[i] = bytesIn[i];
@@ -513,7 +503,7 @@ public class FileClient extends Client implements FileClientInterface {
 			 	}
 
 				message.addObject(buf);
-				message.addObject(new Integer(i + 1));
+				message.addObject(new Integer(i));
 
 				output.writeObject(message);
 

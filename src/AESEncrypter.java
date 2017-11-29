@@ -90,12 +90,9 @@ public class AESEncrypter {
   }
 
   //Generate a 128-bit random IV 
-  public IvParameterSpec updateIV() {
-    byte[] ivBytes = null;
-    do{
-      ivBytes = new byte[16];
-      rand.nextBytes(ivBytes);
-    } while (!checkIV(ivBytes));
+  public IvParameterSpec updateIV() {   
+    byte[] ivBytes = new byte[16];
+    rand.nextBytes(ivBytes);
 
     IvParameterSpec AESIVSpec = new IvParameterSpec(ivBytes);
     return AESIVSpec;
