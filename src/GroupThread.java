@@ -543,18 +543,12 @@ public class GroupThread extends Thread
 				else if(message.getMessage().equals("CHECKPWD")) //Client wants to check a password
 				{
 
-					//TROUBLESHOOTING
-					System.out.println(">>>CHECK 1");
-
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
 					EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0);
 					EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
 					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(2);
-
-					//TROUBLESHOOTING
-					System.out.println(">>>CHECK 2");
 
 					//Decrypt messages
 					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
@@ -567,9 +561,6 @@ public class GroupThread extends Thread
 						System.exit(0);
 					}
 
-					//TROUBLESHOOTING
-					System.out.println(">>>CHECK 3");
-
 					//Hash password
 					byte[] passwordHash = null;
 					try {
@@ -577,9 +568,6 @@ public class GroupThread extends Thread
 						byte[] salt = my_gs.userList.getSalt(usernameDecr);
 						byte[] temp = passwordDecr.getBytes("UTF-8");
 						byte[] saltedPassword = new byte[salt.length + temp.length];
-
-						//TROUBLESHOOTING
-						System.out.printf(">>>ABOUT TO ENTER SALTING LOOP\n");
 
 						for(int i = 0; i < saltedPassword.length; i++){
 							if(i < salt.length){
@@ -589,9 +577,6 @@ public class GroupThread extends Thread
 								saltedPassword[i] = temp[i - salt.length];
 							}
 						}
-
-						//TROUBLESHOOTING
-						System.out.printf(">>>FINISHED SALTING LOOP\n");
 
 						//Hash salted password
 						DigestSHA3 md = new DigestSHA3(256);
