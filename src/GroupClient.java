@@ -240,11 +240,29 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 {
 		 try
 			{
+				//Generate salt
+				SecureRandom rand = new SecureRandom();
+				byte[] salt = new byte[16];
+				rand.nextBytes(salt);
+
+				//Add salt to password
+				byte[] temp = password.getBytes("UTF-8");
+				byte[] saltedPassword = new byte[salt.length + temp.length];
+				for(int i = 0; i < saltedPassword.length; i++){
+					if(i < salt.length){
+						saltedPassword[i] = salt[i];
+					}
+					else{
+						saltedPassword[i] = temp[i - salt.length];
+					}
+				}
+
+				//Hash salted password
 				Envelope message = null, response = null;
 				byte[] passwordHash = null;
 				try {
 					DigestSHA3 md = new DigestSHA3(256);
-	  				md.update(password.getBytes("UTF-8"));
+	  				md.update(saltedPassword);
 	  				passwordHash = md.digest();
 				} catch(Exception ex) {
 					ex.printStackTrace();
@@ -260,15 +278,18 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
 				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
+				AESEncrypter saltEnc = new AESEncrypter(AESKey);
 
 				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
 				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
+				EncryptedMessage saltEncrypted = saltEnc.encrypt(salt);
 
 				EncryptedMessage tokenIn = token.getToken();
 				EncryptedMessage signIn = token.getSignature();
 
 				message.addObject(usernameEncrypted); //Add user name string
 				message.addObject(passwordEncrypted);
+				message.addObject(saltEncrypted);
 				message.addObject(tokenIn); //Add the requester's token
 				message.addObject(signIn);
 

@@ -13,15 +13,22 @@ import org.bouncycastle.util.encoders.Hex;
 		private static final long serialVersionUID = 7600343803563417992L;
 		private Hashtable<String, User> list = new Hashtable<String, User>();
 		
-		public synchronized void addUser(String username, byte[] password)
+		public synchronized void addUser(String username, byte[] password, byte[] salt)
 		{
 			User newUser = new User();
+
   			newUser.setPassword(password);
+  			newUser.setSalt(salt);
+
 			list.put(username, newUser);
 		}
 
 		public byte[] getPassword(String username){
 			return list.get(username).getPassword();
+		}
+
+		public byte[] getSalt(String username){
+			return list.get(username).getSalt();
 		}
 		
 		public synchronized void deleteUser(String username)
@@ -86,6 +93,7 @@ import org.bouncycastle.util.encoders.Hex;
 		private ArrayList<String> groups;
 		private ArrayList<String> ownership;
 		private byte[] password;
+		private byte[] salt;
 		
 		public User()
 		{
@@ -99,6 +107,14 @@ import org.bouncycastle.util.encoders.Hex;
 
 		public byte[] getPassword(){
 			return password;
+		}
+
+		public void setSalt(byte[] salt){
+			this.salt = salt;
+		}
+
+		public byte[] getSalt(){
+			return salt;
 		}
 		
 		public ArrayList<String> getGroups()

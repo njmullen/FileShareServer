@@ -63,9 +63,27 @@ public class GroupServer extends Server {
 			String password = console.next();
 
 			byte[] passwordHash = null;
+			byte[] salt = new byte[16];
 			try {
+				//Generate salt
+				SecureRandom rand = new SecureRandom();
+				rand.nextBytes(salt);
+
+				//Add salt to password
+				byte[] temp = password.getBytes("UTF-8");
+				byte[] saltedPassword = new byte[salt.length + temp.length];
+				for(int i = 0; i < saltedPassword.length; i++){
+					if(i < salt.length){
+						saltedPassword[i] = salt[i];
+					}
+					else{
+						saltedPassword[i] = temp[i - salt.length];
+					}
+				}
+
+				//Hash password
 				DigestSHA3 md = new DigestSHA3(256); 
-  				md.update(password.getBytes("UTF-8"));
+  				md.update(saltedPassword);
   				passwordHash = md.digest();
 			} catch(Exception ex) {
 				ex.printStackTrace();
@@ -73,7 +91,7 @@ public class GroupServer extends Server {
 
 			//Create a new list, add current user to the ADMIN group. They now own the ADMIN group.
 			userList = new UserList();
-			userList.addUser(username, passwordHash);
+			userList.addUser(username, passwordHash, salt);
 			userList.addGroup(username, "ADMIN");
 			userList.addOwnership(username, "ADMIN");
 

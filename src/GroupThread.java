@@ -185,11 +185,12 @@ public class GroupThread extends Thread
 							{
 								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
-								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
-								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(3);
+								EncryptedMessage salt = (EncryptedMessage)message.getObjContents().get(2);
+								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(3); //Extract the token
+								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(4);
 
 								//Check increment
-								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(4);
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(5);
 								if(!checkIncrement(increment)){
 									System.out.println("CUSER Server Replay detected");
 									System.exit(0);
@@ -202,15 +203,17 @@ public class GroupThread extends Thread
 
 								AESDecrypter usernameDecr = new AESDecrypter(AESKey);
 								AESDecrypter passwordDecr = new AESDecrypter(AESKey);
+								AESDecrypter saltDecr = new AESDecrypter(AESKey);
 								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 								String usernamePlain = usernameDecr.decrypt(username);
 								byte[] passwordPlain = passwordDecr.decryptBytes(password);
+								byte[] saltPlain = saltDecr.decryptBytes(salt);
 								byte[] tokenPlain = tokenDecr.decryptBytes(token);
 
 								Token yourToken = new Token(tokenPlain);
 
 
-								if(createUser(usernamePlain, passwordPlain, yourToken))
+								if(createUser(usernamePlain, passwordPlain, saltPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -539,12 +542,19 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("CHECKPWD")) //Client wants to check a password
 				{
+
+					//TROUBLESHOOTING
+					System.out.println(">>>CHECK 1");
+
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
 					EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0);
 					EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
 					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(2);
+
+					//TROUBLESHOOTING
+					System.out.println(">>>CHECK 2");
 
 					//Decrypt messages
 					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
@@ -557,11 +567,35 @@ public class GroupThread extends Thread
 						System.exit(0);
 					}
 
+					//TROUBLESHOOTING
+					System.out.println(">>>CHECK 3");
+
 					//Hash password
 					byte[] passwordHash = null;
 					try {
+						//Get salt for user and add to password
+						byte[] salt = my_gs.userList.getSalt(usernameDecr);
+						byte[] temp = passwordDecr.getBytes("UTF-8");
+						byte[] saltedPassword = new byte[salt.length + temp.length];
+
+						//TROUBLESHOOTING
+						System.out.printf(">>>ABOUT TO ENTER SALTING LOOP\n");
+
+						for(int i = 0; i < saltedPassword.length; i++){
+							if(i < salt.length){
+								saltedPassword[i] = salt[i];
+							}
+							else{
+								saltedPassword[i] = temp[i - salt.length];
+							}
+						}
+
+						//TROUBLESHOOTING
+						System.out.printf(">>>FINISHED SALTING LOOP\n");
+
+						//Hash salted password
 						DigestSHA3 md = new DigestSHA3(256);
-		  				md.update(passwordDecr.getBytes("UTF-8"));
+		  				md.update(saltedPassword);
 		  				passwordHash = md.digest();
 					} catch(Exception ex) {
 						ex.printStackTrace();
@@ -704,7 +738,7 @@ public class GroupThread extends Thread
 
 
 	//Method to create a user
-	private boolean createUser(String username, byte[] password, UserToken yourToken)
+	private boolean createUser(String username, byte[] password, byte[] salt, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
 
@@ -723,7 +757,7 @@ public class GroupThread extends Thread
 				}
 				else
 				{
-					my_gs.userList.addUser(username, password);
+					my_gs.userList.addUser(username, password, salt);
 					return true;
 				}
 			}
