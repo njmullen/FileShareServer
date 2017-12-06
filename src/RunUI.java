@@ -459,7 +459,7 @@ public class RunUI {
                     case 3:
                         System.out.println("Create a Group");
                         System.out.println("Enter the group name: ");
-                        String groupName = checkForPipe(scan);
+                        String groupName = checkForJustPipe(scan);
                         if(gc.createGroup(groupName, token)){
                             System.out.println(groupName + " succesfully created!");
                         } else {
@@ -664,7 +664,7 @@ public class RunUI {
   public static String checkForJustPipe(Scanner scan) {
         String input = scan.next();
         while(input.contains("|") || input.contains("/")){
-            System.out.println("Username must not contain \'|\' or \'/\'\n");
+            System.out.println("Entry must not contain \'|\' or \'/\'\n");
             input = scan.next();
         }
         return input;
