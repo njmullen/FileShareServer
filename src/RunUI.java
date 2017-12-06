@@ -431,7 +431,7 @@ public class RunUI {
                     case 1:
                         System.out.println("Create a User");
                         System.out.println("Enter username to be created: ");
-                        String newUsername = checkForPipe(scan);
+                        String newUsername = checkForJustPipe(scan);
                         System.out.println("Set a password for that user: ");
                         String password = checkForPipe(scan);
                         //Checks that current logged in user is an admin, if not, forbids the operation
@@ -658,6 +658,15 @@ public class RunUI {
         int choice = scan.nextInt();
         System.out.println("");
         return choice;
+  }
+
+  public static String checkForJustPipe(Scanner scan) {
+        String input = scan.next();
+        while(input.contains("|") || input.contains("/")){
+            System.out.println("Username must not contain \'|\' or \'/\'\n");
+            input = scan.next();
+        }
+        return input;
   }
 
   public static String checkForPipe(Scanner scan) {
