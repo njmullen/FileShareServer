@@ -74,6 +74,94 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	}
 
+	//Asks the server if a challenge is required to attempt another password
+	public byte[] challenge(String username){
+		Envelope message = null;
+		Envelope response = null;
+
+		//Send encrypted passwords
+		try{
+			message = new Envelope("CHALLENGE");
+			AESEncrypter encr = new AESEncrypter(AESKey);
+			EncryptedMessage usernameEncr = encr.encrypt(username);
+			message.addObject(usernameEncr);
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
+
+			output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
+
+			if(response.getMessage().equals("OK")){
+				int challengeLevel = (int)response.getObjContents().get(1);
+				BitSet yBit = (BitSet)response.getObjContents().get(2);
+				byte[] z = (byte[])response.getObjContents().get(3);
+
+				PuzzleSolver ps = new PuzzleSolver();
+				if(challengeLevel == 1){
+					return ps.solve20BitPuzzle(yBit, z);
+				} else if (challengeLevel == 2){
+					return ps.solve24BitPuzzle(yBit, z);
+				} else {
+					return null;
+				}
+			} else {
+				return null;
+			}
+		} catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return null;
+	}
+
+	public boolean returnChallenge(byte[] returnedChallenge, String username){
+		Envelope message = null;
+		Envelope response = null;
+
+		//Send encrypted passwords
+		try{
+			message = new Envelope("RETCHALLENGE");
+			AESEncrypter encr = new AESEncrypter(AESKey);
+			EncryptedMessage challEnc = encr.encrypt(returnedChallenge);
+			message.addObject(challEnc);
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
+
+			//Add username
+			AESEncrypter uEncr = new AESEncrypter(AESKey);
+			EncryptedMessage userNE = uEncr.encrypt(username);
+			message.addObject(userNE);
+
+			output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
+
+			if(response.getMessage().equals("OK")){
+				return true;
+			} else {
+				return false;
+			}
+		} catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return false;
+	}
+
+
 	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
 		Envelope message = null;
 		Envelope response = null;
@@ -240,11 +328,29 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 {
 		 try
 			{
+				//Generate salt
+				SecureRandom rand = new SecureRandom();
+				byte[] salt = new byte[16];
+				rand.nextBytes(salt);
+
+				//Add salt to password
+				byte[] temp = password.getBytes("UTF-8");
+				byte[] saltedPassword = new byte[salt.length + temp.length];
+				for(int i = 0; i < saltedPassword.length; i++){
+					if(i < salt.length){
+						saltedPassword[i] = salt[i];
+					}
+					else{
+						saltedPassword[i] = temp[i - salt.length];
+					}
+				}
+
+				//Hash salted password
 				Envelope message = null, response = null;
 				byte[] passwordHash = null;
 				try {
 					DigestSHA3 md = new DigestSHA3(256);
-	  				md.update(password.getBytes("UTF-8"));
+	  				md.update(saltedPassword);
 	  				passwordHash = md.digest();
 				} catch(Exception ex) {
 					ex.printStackTrace();
@@ -260,15 +366,18 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				AESEncrypter usernameEnc = new AESEncrypter(AESKey);
 				AESEncrypter passwordEnc = new AESEncrypter(AESKey);
+				AESEncrypter saltEnc = new AESEncrypter(AESKey);
 
 				EncryptedMessage usernameEncrypted = usernameEnc.encrypt(username);
 				EncryptedMessage passwordEncrypted = passwordEnc.encrypt(passwordHash);
+				EncryptedMessage saltEncrypted = saltEnc.encrypt(salt);
 
 				EncryptedMessage tokenIn = token.getToken();
 				EncryptedMessage signIn = token.getSignature();
 
 				message.addObject(usernameEncrypted); //Add user name string
 				message.addObject(passwordEncrypted);
+				message.addObject(saltEncrypted);
 				message.addObject(tokenIn); //Add the requester's token
 				message.addObject(signIn);
 

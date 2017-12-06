@@ -185,11 +185,12 @@ public class GroupThread extends Thread
 							{
 								EncryptedMessage username = (EncryptedMessage)message.getObjContents().get(0); //Extract the username
 								EncryptedMessage password = (EncryptedMessage)message.getObjContents().get(1);
-								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(2); //Extract the token
-								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(3);
+								EncryptedMessage salt = (EncryptedMessage)message.getObjContents().get(2);
+								EncryptedMessage token = (EncryptedMessage)message.getObjContents().get(3); //Extract the token
+								EncryptedMessage tokenSignature = (EncryptedMessage)message.getObjContents().get(4);
 
 								//Check increment
-								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(4);
+								EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(5);
 								if(!checkIncrement(increment)){
 									System.out.println("CUSER Server Replay detected");
 									System.exit(0);
@@ -202,15 +203,17 @@ public class GroupThread extends Thread
 
 								AESDecrypter usernameDecr = new AESDecrypter(AESKey);
 								AESDecrypter passwordDecr = new AESDecrypter(AESKey);
+								AESDecrypter saltDecr = new AESDecrypter(AESKey);
 								AESDecrypter tokenDecr = new AESDecrypter(AESKey);
 								String usernamePlain = usernameDecr.decrypt(username);
 								byte[] passwordPlain = passwordDecr.decryptBytes(password);
+								byte[] saltPlain = saltDecr.decryptBytes(salt);
 								byte[] tokenPlain = tokenDecr.decryptBytes(token);
 
 								Token yourToken = new Token(tokenPlain);
 
 
-								if(createUser(usernamePlain, passwordPlain, yourToken))
+								if(createUser(usernamePlain, passwordPlain, saltPlain, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -539,6 +542,7 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("CHECKPWD")) //Client wants to check a password
 				{
+
 					if(message.getObjContents().size() < 2){
 						response = new Envelope("FAIL");
 					}
@@ -560,8 +564,23 @@ public class GroupThread extends Thread
 					//Hash password
 					byte[] passwordHash = null;
 					try {
+						//Get salt for user and add to password
+						byte[] salt = my_gs.userList.getSalt(usernameDecr);
+						byte[] temp = passwordDecr.getBytes("UTF-8");
+						byte[] saltedPassword = new byte[salt.length + temp.length];
+
+						for(int i = 0; i < saltedPassword.length; i++){
+							if(i < salt.length){
+								saltedPassword[i] = salt[i];
+							}
+							else{
+								saltedPassword[i] = temp[i - salt.length];
+							}
+						}
+
+						//Hash salted password
 						DigestSHA3 md = new DigestSHA3(256);
-		  				md.update(passwordDecr.getBytes("UTF-8"));
+		  				md.update(saltedPassword);
 		  				passwordHash = md.digest();
 					} catch(Exception ex) {
 						ex.printStackTrace();
@@ -642,9 +661,103 @@ public class GroupThread extends Thread
 					response = new Envelope("KEY");
 					response.addObject(publicKey);
 					output.writeObject(response);
-				}
-				else
-				{
+				} else if (message.getMessage().equals("CHALLENGE")){
+
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(1);
+
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String username = aesDecrypter.decrypt(usernameEnc);
+
+					//Check increment
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
+
+					//Check the challenge level for the user, and return
+					int challengeLevel = challenge(username);
+					response = new Envelope("OK");
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
+
+					BigInteger b = new BigInteger(128, new Random());
+					byte[] x = b.toByteArray();
+
+					byte[] y = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+						md.update(x);
+						y = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					if(challengeLevel == 1 || challengeLevel == 2){
+						setYChallenge(y, username);
+					}
+
+					byte[] z = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+						md.update(y);
+						z = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					BitSet yBit = new BitSet();
+					yBit = yBit.valueOf(y);
+
+					if(challengeLevel == 1){
+						for (int i = 254; i > 235; i--){
+							yBit.set(i, false);
+						}
+					} else if (challengeLevel == 2){
+						for (int i = 254; i > 231; i--){
+							yBit.set(i, false);
+						}
+					}
+
+					response.addObject(challengeLevel);
+					response.addObject(yBit);
+					response.addObject(z);
+
+					output.writeObject(response);
+
+				} else if (message.getMessage().equals("RETCHALLENGE")){
+
+					EncryptedMessage challengeEnc = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(1);
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(2);
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					byte[] challenge = aesDecrypter.decryptBytes(challengeEnc);
+					AESDecrypter aesDecr = new AESDecrypter(AESKey);
+					String username = aesDecr.decrypt(usernameEnc);
+
+					//Check increment
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
+
+					boolean passChallengeRes = passChallenge(username, challenge);
+					if(passChallengeRes){
+						response = new Envelope("OK");
+						//Increment value
+						EncryptedMessage incrementSend = increment();
+						response.addObject(incrementSend);
+					} else {
+						response = new Envelope("FAIL");
+						//Increment value
+						EncryptedMessage incrementSend = increment();
+						response.addObject(incrementSend);
+					}
+					output.writeObject(response);
+				} else {
 					response = new Envelope("FAIL"); //Server does not understand client request
 					output.writeObject(response);
 				}
@@ -680,7 +793,26 @@ public class GroupThread extends Thread
 	{
 		if (my_gs.userList.checkUser(username)){
 			byte[] retrievedPassword = my_gs.userList.getPassword(username);
-			return Arrays.equals(password, retrievedPassword);
+			boolean passwordCheck = Arrays.equals(password, retrievedPassword);
+			if(!passwordCheck){
+				my_gs.userList.addFailedAttempt(username);
+			} else {
+				my_gs.userList.resetFailedAttempts(username);
+			}
+			return passwordCheck;
+		} else {
+			return false;
+		}
+	}
+
+	private void setYChallenge(byte[] y, String username){
+		my_gs.userList.setY(username, y);
+	}
+
+	private boolean passChallenge(String username, byte[] challenge){
+		byte[] y = my_gs.userList.getY(username);
+		if(Arrays.equals(y, challenge)){
+			return true;
 		} else {
 			return false;
 		}
@@ -704,7 +836,7 @@ public class GroupThread extends Thread
 
 
 	//Method to create a user
-	private boolean createUser(String username, byte[] password, UserToken yourToken)
+	private boolean createUser(String username, byte[] password, byte[] salt, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
 
@@ -723,7 +855,7 @@ public class GroupThread extends Thread
 				}
 				else
 				{
-					my_gs.userList.addUser(username, password);
+					my_gs.userList.addUser(username, password, salt);
 					return true;
 				}
 			}
@@ -835,6 +967,15 @@ public class GroupThread extends Thread
 		} else {
 			//Doesn't exist
 			return false;
+		}
+	}
+
+	private int challenge(String username){
+		if (my_gs.userList.checkUser(username)){
+			int challengeLevel = my_gs.userList.getChallengeLevel(username);
+			return challengeLevel;
+		} else {
+			return 3;
 		}
 	}
 
