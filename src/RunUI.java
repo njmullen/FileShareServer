@@ -662,9 +662,9 @@ public class RunUI {
 
   public static String checkForPipe(Scanner scan) {
         String input = scan.next();
-        while(input.contains("|") || input.contains("/") ) {
-          System.out.println("Invalid: Cannot contain \'|\' or \'/\'\nTry again.");
-          input = scan.next();
+        while(input.length() < 8 || input.contains("|") || input.contains("/")){
+            System.out.println("Password must be 8 characters or more, and not contain \'|\' or \'/\'\n");
+            input = scan.next();
         }
         return input;
   }

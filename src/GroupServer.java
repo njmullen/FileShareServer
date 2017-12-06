@@ -62,6 +62,11 @@ public class GroupServer extends Server {
 			System.out.println("Enter a password: ");
 			String password = console.next();
 
+			while(password.length() < 8 || password.contains("|") || password.contains("/")){
+				System.out.println("Password must be 8 characters or more, and not contain \'|\' or \'/\'\n");
+				password = console.next();
+			}
+
 			byte[] passwordHash = null;
 			byte[] salt = new byte[16];
 			try {
