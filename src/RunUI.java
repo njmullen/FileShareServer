@@ -355,6 +355,8 @@ public class RunUI {
         }
     }
 
+    System.out.println("Here");
+
     //Send encrypted user and password
     //Checks to see if the password is invalid; denies entry if it is entered incorrectly
     //5 times

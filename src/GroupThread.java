@@ -695,7 +695,9 @@ public class GroupThread extends Thread
 						ex.printStackTrace();
 					}
 
-					setYChallenge(y, username);
+					if(challengeLevel == 1 || challengeLevel == 2){
+						setYChallenge(y, username);
+					}
 
 					byte[] z = null;
 					try {
@@ -973,7 +975,7 @@ public class GroupThread extends Thread
 			int challengeLevel = my_gs.userList.getChallengeLevel(username);
 			return challengeLevel;
 		} else {
-			return 0;
+			return 3;
 		}
 	}
 
