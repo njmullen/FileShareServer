@@ -653,6 +653,7 @@ public class RunUI {
         System.out.println("2. Download a file");
         System.out.println("3. Delete a file");
         System.out.println("4. List all files\n");
+        System.out.println("");
         System.out.println("0. Exit");
         System.out.println("Select an option: ");
         int choice = scan.nextInt();
