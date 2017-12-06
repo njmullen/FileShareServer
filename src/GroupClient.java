@@ -74,6 +74,94 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	}
 
+	//Asks the server if a challenge is required to attempt another password
+	public byte[] challenge(String username){
+		Envelope message = null;
+		Envelope response = null;
+
+		//Send encrypted passwords
+		try{
+			message = new Envelope("CHALLENGE");
+			AESEncrypter encr = new AESEncrypter(AESKey);
+			EncryptedMessage usernameEncr = encr.encrypt(username);
+			message.addObject(usernameEncr);
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
+
+			output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
+
+			if(response.getMessage().equals("OK")){
+				int challengeLevel = (int)response.getObjContents().get(1);
+				BitSet yBit = (BitSet)response.getObjContents().get(2);
+				byte[] z = (byte[])response.getObjContents().get(3);
+
+				PuzzleSolver ps = new PuzzleSolver();
+				if(challengeLevel == 1){
+					return ps.solve20BitPuzzle(yBit, z);
+				} else if (challengeLevel == 2){
+					return ps.solve24BitPuzzle(yBit, z);
+				} else {
+					return null;
+				}
+			} else {
+				return null;
+			}
+		} catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return null;
+	}
+
+	public boolean returnChallenge(byte[] returnedChallenge, String username){
+		Envelope message = null;
+		Envelope response = null;
+
+		//Send encrypted passwords
+		try{
+			message = new Envelope("RETCHALLENGE");
+			AESEncrypter encr = new AESEncrypter(AESKey);
+			EncryptedMessage challEnc = encr.encrypt(returnedChallenge);
+			message.addObject(challEnc);
+			//Add increment value
+			EncryptedMessage increment = increment();
+			message.addObject(increment);
+
+			//Add username
+			AESEncrypter uEncr = new AESEncrypter(AESKey);
+			EncryptedMessage userNE = uEncr.encrypt(username);
+			message.addObject(userNE);
+
+			output.writeObject(message);
+
+			response = (Envelope)input.readObject();
+			//Check increment value
+			EncryptedMessage incrementIn = (EncryptedMessage)response.getObjContents().get(0);
+			if(!checkIncrement(incrementIn)){
+				System.out.println("Client Replay detected");
+				System.exit(0);
+			}
+
+			if(response.getMessage().equals("OK")){
+				return true;
+			} else {
+				return false;
+			}
+		} catch(Exception ex){
+			ex.printStackTrace();
+		}
+		return false;
+	}
+
+
 	public boolean checkPassword(EncryptedMessage usernameEnc, EncryptedMessage passwordEnc){
 		Envelope message = null;
 		Envelope response = null;

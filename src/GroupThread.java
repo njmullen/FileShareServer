@@ -661,9 +661,101 @@ public class GroupThread extends Thread
 					response = new Envelope("KEY");
 					response.addObject(publicKey);
 					output.writeObject(response);
-				}
-				else
-				{
+				} else if (message.getMessage().equals("CHALLENGE")){
+
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(1);
+
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					String username = aesDecrypter.decrypt(usernameEnc);
+
+					//Check increment
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
+
+					//Check the challenge level for the user, and return
+					int challengeLevel = challenge(username);
+					response = new Envelope("OK");
+					//Increment value
+					EncryptedMessage incrementSend = increment();
+					response.addObject(incrementSend);
+
+					BigInteger b = new BigInteger(128, new Random());
+					byte[] x = b.toByteArray();
+
+					byte[] y = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+						md.update(x);
+						y = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					setYChallenge(y, username);
+
+					byte[] z = null;
+					try {
+						DigestSHA3 md = new DigestSHA3(256);
+						md.update(y);
+						z = md.digest();
+					} catch(Exception ex) {
+						ex.printStackTrace();
+					}
+
+					BitSet yBit = new BitSet();
+					yBit = yBit.valueOf(y);
+
+					if(challengeLevel == 1){
+						for (int i = 254; i > 235; i--){
+							yBit.set(i, false);
+						}
+					} else if (challengeLevel == 2){
+						for (int i = 254; i > 231; i--){
+							yBit.set(i, false);
+						}
+					}
+
+					response.addObject(challengeLevel);
+					response.addObject(yBit);
+					response.addObject(z);
+
+					output.writeObject(response);
+
+				} else if (message.getMessage().equals("RETCHALLENGE")){
+
+					EncryptedMessage challengeEnc = (EncryptedMessage)message.getObjContents().get(0);
+					EncryptedMessage increment = (EncryptedMessage)message.getObjContents().get(1);
+					EncryptedMessage usernameEnc = (EncryptedMessage)message.getObjContents().get(2);
+					//Decrypt messages
+					AESDecrypter aesDecrypter = new AESDecrypter(AESKey);
+					byte[] challenge = aesDecrypter.decryptBytes(challengeEnc);
+					AESDecrypter aesDecr = new AESDecrypter(AESKey);
+					String username = aesDecr.decrypt(usernameEnc);
+
+					//Check increment
+					if(!checkIncrement(increment)){
+						System.out.println("Server Replay detected");
+						System.exit(0);
+					}
+
+					boolean passChallengeRes = passChallenge(username, challenge);
+					if(passChallengeRes){
+						response = new Envelope("OK");
+						//Increment value
+						EncryptedMessage incrementSend = increment();
+						response.addObject(incrementSend);
+					} else {
+						response = new Envelope("FAIL");
+						//Increment value
+						EncryptedMessage incrementSend = increment();
+						response.addObject(incrementSend);
+					}
+					output.writeObject(response);
+				} else {
 					response = new Envelope("FAIL"); //Server does not understand client request
 					output.writeObject(response);
 				}
@@ -699,7 +791,26 @@ public class GroupThread extends Thread
 	{
 		if (my_gs.userList.checkUser(username)){
 			byte[] retrievedPassword = my_gs.userList.getPassword(username);
-			return Arrays.equals(password, retrievedPassword);
+			boolean passwordCheck = Arrays.equals(password, retrievedPassword);
+			if(!passwordCheck){
+				my_gs.userList.addFailedAttempt(username);
+			} else {
+				my_gs.userList.resetFailedAttempts(username);
+			}
+			return passwordCheck;
+		} else {
+			return false;
+		}
+	}
+
+	private void setYChallenge(byte[] y, String username){
+		my_gs.userList.setY(username, y);
+	}
+
+	private boolean passChallenge(String username, byte[] challenge){
+		byte[] y = my_gs.userList.getY(username);
+		if(Arrays.equals(y, challenge)){
+			return true;
 		} else {
 			return false;
 		}
@@ -854,6 +965,15 @@ public class GroupThread extends Thread
 		} else {
 			//Doesn't exist
 			return false;
+		}
+	}
+
+	private int challenge(String username){
+		if (my_gs.userList.checkUser(username)){
+			int challengeLevel = my_gs.userList.getChallengeLevel(username);
+			return challengeLevel;
+		} else {
+			return 0;
 		}
 	}
 

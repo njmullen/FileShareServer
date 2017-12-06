@@ -345,16 +345,36 @@ public class RunUI {
     EncryptedMessage encryptedUser = aesUsername.encrypt(username);
     EncryptedMessage encryptedPass = aesPassword.encrypt(passwordEntry);
 
+    //Check to see if challenge is required to proceed with password entry
+    byte[] solvedChallenge = gc.challenge(username);
+    if(solvedChallenge != null){
+        boolean pass = gc.returnChallenge(solvedChallenge, username);
+        if(!pass){
+            System.out.println("Puzzle failed");
+            System.exit(0);
+        }
+    }
+
     //Send encrypted user and password
     //Checks to see if the password is invalid; denies entry if it is entered incorrectly
     //5 times
-    while (!gc.checkPassword(encryptedUser, encryptedPass) && passwordAttempts <= 5){
+    while (!gc.checkPassword(encryptedUser, encryptedPass) && passwordAttempts < 5){
         System.out.println("Invalid username or password. Please try again");
         System.out.println("Enter your username: ");
         username = scan.next();
         System.out.println("Enter your password: ");
         passwordEntry = scan.next();
         passwordAttempts++;
+
+        //Check to see if challenge is required to proceed with password entry
+        byte[] solvedChallengeP = gc.challenge(username);
+        if(solvedChallengeP != null){
+            boolean passP = gc.returnChallenge(solvedChallengeP, username);
+            if(!passP){
+                System.out.println("Puzzle failed");
+                System.exit(0);
+            }
+        }
 
         AESEncrypter aesUsernamePrime = new AESEncrypter(gsAESKey);
         AESEncrypter aesPasswordPrime = new AESEncrypter(gsAESKey);
@@ -363,7 +383,7 @@ public class RunUI {
         encryptedPass = aesPasswordPrime.encrypt(passwordEntry);
     }
     //Denies entry if more than 5 attempts were made
-    if(passwordAttempts > 5){
+    if(passwordAttempts >= 5){
         System.out.println("Incorrect username or password. Too many attempts. Exiting");
         System.exit(0);
     }
